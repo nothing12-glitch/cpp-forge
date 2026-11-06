@@ -2,12 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>cpp-forge — C and C++ in the browser</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>cpp-forge — C, C++ and C# in the browser</title>
     <meta
       name="description"
-      content="Compile and run C and C++ entirely in your browser with Clang 21 compiled to WebAssembly. No server, no install."
+      content="Compile and run C, C++ and C# entirely in your browser with Clang 21 compiled to WebAssembly. No server, no install."
     />
+    <meta name="theme-color" content="#04100b" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   </head>
   <body>
@@ -17,32 +18,40 @@
           <path d="M13 2 4 13h6l-1 9 9-11h-6l1-9Z" />
         </svg>
         <h1>cpp<span class="dot">·</span>forge</h1>
-        <span class="badge" id="toolchain-badge">Clang 21 · C++20</span>
+        <button id="lang-chip" class="badge badge-button" type="button" aria-haspopup="dialog">Clang 21 · C++20</button>
       </div>
       <div class="topbar-right">
         <span class="status" id="status" data-state="idle">idle</span>
+        <button id="tasks" class="btn btn-ghost" type="button" aria-haspopup="dialog">challenges</button>
+        <button id="help" class="btn btn-icon" type="button" aria-haspopup="dialog" aria-label="Keyboard shortcuts">?</button>
         <button id="sound" class="btn btn-sound" type="button" aria-pressed="true">sound on</button>
         <a class="link" href="https://github.com/nothing12-glitch/cpp-forge" target="_blank" rel="noreferrer">source</a>
       </div>
     </header>
 
-    <main class="workspace">
+    <main class="workspace" id="workspace" data-view="editor">
       <section class="pane pane-editor" aria-label="Source code">
         <div class="toolbar">
           <select id="language" class="select" aria-label="Language">
             <option value="cpp">C++</option>
             <option value="c">C</option>
+            <option value="csharp">C# (soon)</option>
           </select>
           <select id="standard" class="select" aria-label="Language standard" hidden></select>
           <select id="examples" class="select" aria-label="Example">
             <option value="">load example…</option>
           </select>
           <div class="spacer"></div>
+          <div class="font-size" role="group" aria-label="Editor font size">
+            <button id="font-minus" class="btn btn-icon" type="button" aria-label="Smaller text">A−</button>
+            <button id="font-plus" class="btn btn-icon" type="button" aria-label="Bigger text">A+</button>
+          </div>
           <button id="run" class="btn btn-run" type="button">
             Run<span class="kbd">Ctrl+Enter</span>
           </button>
           <button id="stop" class="btn btn-stop" type="button" disabled>Stop</button>
         </div>
+        <p class="task-flag" id="task-flag" hidden></p>
         <div id="editor" class="editor"></div>
         <div class="stdin">
           <button id="stdin-toggle" class="stdin-toggle" type="button" aria-expanded="false">
@@ -50,6 +59,7 @@
           </button>
           <textarea id="stdin" class="stdin-box" rows="3" placeholder="input for the program" hidden></textarea>
         </div>
+        <p class="doc-stats" id="doc-stats"></p>
       </section>
 
       <section class="pane pane-output" aria-label="Program output">
@@ -60,10 +70,12 @@
           <button id="inspect" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="pipeline">
             how it compiles
           </button>
+          <button id="copy-output" class="btn btn-ghost" type="button">copy</button>
           <button id="share" class="btn btn-ghost" type="button">share link</button>
           <button id="clear" class="btn btn-ghost" type="button">clear</button>
         </div>
         <pre id="console" class="console" aria-live="polite"></pre>
+        <div id="hints" class="hints" hidden></div>
 
         <div id="pipeline" class="pipeline" hidden>
           <div class="pipeline-head">
@@ -80,10 +92,51 @@
       </section>
     </main>
 
+    <nav class="view-tabs" id="view-tabs" aria-label="View">
+      <button type="button" class="view-tab is-active" data-view="editor">code</button>
+      <div class="view-actions" id="view-actions"></div>
+      <button type="button" class="view-tab" data-view="output">output</button>
+    </nav>
+
     <footer class="footnote">
       Compiles to wasm32-wasi and runs inside your browser — nothing is uploaded. First run downloads the
       ~23&nbsp;MB toolchain, then it is cached.
     </footer>
+
+    <div id="lang-gate" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="lang-title">
+      <div class="sheet-card">
+        <h2 id="lang-title">what are we forging?</h2>
+        <p class="sheet-hint">
+          Pick a language — the choice is remembered on this device, and the editor also recognises
+          pasted code.
+        </p>
+        <div class="lang-options" id="lang-options"></div>
+        <label class="sheet-toggle">
+          <input type="checkbox" id="auto-detect" checked />
+          <span>detect the language from what I type</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="task-sheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="task-title">
+      <div class="sheet-card">
+        <h2 id="task-title">challenges</h2>
+        <p class="sheet-hint">
+          Each task runs against an expected output. Solve it and it is ticked on this device.
+        </p>
+        <div class="task-list" id="task-list"></div>
+      </div>
+    </div>
+
+    <div id="shortcuts" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+      <div class="sheet-card">
+        <h2 id="shortcuts-title">shortcuts</h2>
+        <ul class="shortcut-list" id="shortcut-list"></ul>
+        <button id="shortcuts-close" class="btn btn-run" type="button">got it</button>
+      </div>
+    </div>
+
+    <p class="toast" id="toast" role="status" aria-live="polite"></p>
 
     <script type="module" src="./src/main.ts"></script>
   </body>

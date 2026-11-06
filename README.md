@@ -20,19 +20,31 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
 ## Features
 
 - C and C++ with the language-standard picker for C (`c89`…`c23`)
-- CodeMirror 6 editor: syntax highlighting, folding, bracket matching, autocomplete, undo history
-- stdin panel, per-stream coloured output, compile/run timings and the exit code
-- six built-in examples, including one that deliberately fails to compile
+- **three languages on entry**: a picker asks C++ / C / C#, the answer is remembered on the device, and
+  while you type the editor re-reads the buffer and switches on its own when the code clearly belongs
+  to another language (turn that off in the same sheet)
+- CodeMirror 6 editor: syntax highlighting, folding, bracket matching, autocomplete, undo history,
+  plus an `A−`/`A+` text size that is remembered too
+- stdin panel, per-stream coloured output, compile/run timings, exit code and a live
+  lines/chars/bytes counter for the buffer
+- seventeen built-in examples, filtered to the language on screen, including one that deliberately
+  fails to compile
+- **challenges**: ten tasks with starter code, input and an expected output; when the program exits 0
+  the console is compared line by line and the task is ticked on the device (`Ctrl+J`)
+- **error hints**: when clang stops, the diagnostics are translated into plain words next to the panel —
+  matched per message, with a fallback that explains why later errors usually cascade
 - **how it compiles** opens the real pipeline: the same source goes through four extra compiler passes
   (`-fsyntax-only`, `-S -emit-llvm`, `-c -ftime-trace`, link) and the panel reports the measured time of
   each one, the top `-ftime-trace` breakdown of codegen, the LLVM IR text and the linked `wasm32-wasi`
   module with its section sizes, exports and imports. Nothing is executed — it is the compiler talking,
   not a simulation
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
+- **phone layout**: one pane at a time with a `code` / `output` bar in the thumb zone, Run and Stop moved
+  into it, 44 px targets, 16 px inputs so iOS does not zoom, and safe-area padding for the notch
 - feedback layer: sparks at the caret while typing, a heat pulse on Run while Clang works, a mint
   bloom on a clean exit, a shake on failure, plus optional sound and haptics — every effect is
   dropped when the system asks for reduced motion
-- the last session is restored from `localStorage`
+- the last session, including the active challenge, is restored from `localStorage`
 - a run-time limit: an infinite loop is stopped by terminating the worker
 
 ## Limits worth knowing
@@ -44,6 +56,10 @@ These come from running a real compiler in a sandbox, not from a missing feature
   `terminate called after throwing an instance of '…'` and aborts, like Emscripten's default.
   `try`/`catch` still compiles.
 - **C++ is fixed at `-std=c++20 -O2 -Wall`**; the standard picker applies to C only.
+- **C# is detected and remembered, but not compiled.** This build ships only Clang, so Run and
+  *how it compiles* stay disabled while C# is selected — the language layer has a slot for a .NET
+  worker, the worker is what is missing. Sending the code to a remote compiler would break the
+  no-upload promise above, so it is not done silently.
 - **The first run downloads ~23 MB** of toolchain; after that compiles take 1–3 s.
 - **The inspection pass is not free**: it really runs four extra compiler passes, so *how it compiles*
   takes roughly 5–12 s depending on the source. The timings it shows are wall-clock time inside the
