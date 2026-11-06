@@ -23,6 +23,11 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
 - CodeMirror 6 editor: syntax highlighting, folding, bracket matching, autocomplete, undo history
 - stdin panel, per-stream coloured output, compile/run timings and the exit code
 - six built-in examples, including one that deliberately fails to compile
+- **how it compiles** opens the real pipeline: the same source goes through four extra compiler passes
+  (`-fsyntax-only`, `-S -emit-llvm`, `-c -ftime-trace`, link) and the panel reports the measured time of
+  each one, the top `-ftime-trace` breakdown of codegen, the LLVM IR text and the linked `wasm32-wasi`
+  module with its section sizes, exports and imports. Nothing is executed — it is the compiler talking,
+  not a simulation
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
 - feedback layer: sparks at the caret while typing, a heat pulse on Run while Clang works, a mint
   bloom on a clean exit, a shake on failure, plus optional sound and haptics — every effect is
@@ -40,6 +45,9 @@ These come from running a real compiler in a sandbox, not from a missing feature
   `try`/`catch` still compiles.
 - **C++ is fixed at `-std=c++20 -O2 -Wall`**; the standard picker applies to C only.
 - **The first run downloads ~23 MB** of toolchain; after that compiles take 1–3 s.
+- **The inspection pass is not free**: it really runs four extra compiler passes, so *how it compiles*
+  takes roughly 5–12 s depending on the source. The timings it shows are wall-clock time inside the
+  sandbox, which is why codegen looks slow — the `-ftime-trace` numbers inside it are the compiler's own.
 - A program is stopped by killing the worker, so output after the kill point is lost.
 
 ## Development

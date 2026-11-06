@@ -29,6 +29,7 @@ import { tags as t } from '@lezer/highlight';
 
 import { EXAMPLES, type Example, type Language } from './examples';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
+import { initPipeline, closePipeline } from './pipeline';
 import './style.css';
 
 type Stream = 'stdout' | 'stderr' | 'system';
@@ -260,6 +261,7 @@ function formatMs(ms: number): string {
 
 function run() {
   if (busy) return;
+  closePipeline();
   clearConsole();
   programStarted = false;
   compileStartedAt = performance.now();
@@ -435,6 +437,11 @@ soundButton.addEventListener('click', () => {
 clearButton.addEventListener('click', clearConsole);
 shareButton.addEventListener('click', shareLink);
 stdinToggle.addEventListener('click', () => toggleStdin());
+initPipeline(() => ({
+  code: editorView.state.doc.toString(),
+  language: currentLanguage(),
+  standard: standardSelect.value,
+}));
 languageSelect.addEventListener('change', () => {
   syncStandardSelect();
   persist();

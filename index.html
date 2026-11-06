@@ -57,10 +57,26 @@
           <span class="output-title">output</span>
           <span class="metrics" id="metrics"></span>
           <div class="spacer"></div>
+          <button id="inspect" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="pipeline">
+            how it compiles
+          </button>
           <button id="share" class="btn btn-ghost" type="button">share link</button>
           <button id="clear" class="btn btn-ghost" type="button">clear</button>
         </div>
         <pre id="console" class="console" aria-live="polite"></pre>
+
+        <div id="pipeline" class="pipeline" hidden>
+          <div class="pipeline-head">
+            <span class="pipeline-title">clang pipeline · compile only, nothing runs</span>
+            <span class="pipeline-total" id="pipeline-total"></span>
+            <div class="spacer"></div>
+            <button id="pipeline-close" class="btn btn-ghost" type="button">back to output</button>
+          </div>
+          <div id="pipeline-stages" class="pipeline-stages"></div>
+          <div class="artifact-tabs" id="artifact-tabs"></div>
+          <pre id="artifact-body" class="artifact-body" aria-live="polite"></pre>
+          <p class="pipeline-note" id="pipeline-note">waiting for the first pass…</p>
+        </div>
       </section>
     </main>
 
