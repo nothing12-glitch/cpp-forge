@@ -50,19 +50,19 @@ const STORAGE_KEY = 'cpp-forge.state';
 
 const forgeTheme = EditorView.theme({
   '&': { height: '100%', backgroundColor: 'transparent' },
-  '.cm-content': { caretColor: 'var(--ember)' },
+  '.cm-content': { caretColor: 'var(--mint)' },
   '.cm-gutters': { minWidth: '44px' },
 });
 
 const forgeHighlight = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword], color: '#f5a524' },
-  { tag: [t.typeName, t.className, t.namespace], color: '#79c0ff' },
-  { tag: [t.function(t.variableName), t.macroName], color: '#d2a8ff' },
-  { tag: [t.string, t.special(t.string)], color: '#a5d6ff' },
-  { tag: [t.number, t.bool, t.null], color: '#ffab70' },
-  { tag: t.comment, color: '#616e7c', fontStyle: 'italic' },
-  { tag: [t.operator, t.punctuation, t.separator], color: '#8b95a5' },
-  { tag: t.propertyName, color: '#7ee787' },
+  { tag: [t.keyword, t.controlKeyword], color: '#3df37f' },
+  { tag: [t.typeName, t.className, t.namespace], color: '#7dd3fc' },
+  { tag: [t.function(t.variableName), t.macroName], color: '#c4b5fd' },
+  { tag: [t.string, t.special(t.string)], color: '#7ce8c3' },
+  { tag: [t.number, t.bool, t.null], color: '#ffb066' },
+  { tag: t.comment, color: '#5b7268', fontStyle: 'italic' },
+  { tag: [t.operator, t.punctuation, t.separator], color: '#8fa096' },
+  { tag: t.propertyName, color: '#9ae6b4' },
 ]);
 
 const $ = <T extends HTMLElement>(id: string): T => {
