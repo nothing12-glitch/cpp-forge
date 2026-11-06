@@ -24,6 +24,9 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
 - stdin panel, per-stream coloured output, compile/run timings and the exit code
 - six built-in examples, including one that deliberately fails to compile
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
+- feedback layer: sparks at the caret while typing, a heat pulse on Run while Clang works, a mint
+  bloom on a clean exit, a shake on failure, plus optional sound and haptics — every effect is
+  dropped when the system asks for reduced motion
 - the last session is restored from `localStorage`
 - a run-time limit: an infinite loop is stopped by terminating the worker
 

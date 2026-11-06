@@ -23,10 +23,12 @@ import {
   keymap,
   lineNumbers,
   rectangularSelection,
+  type ViewUpdate,
 } from '@codemirror/view';
 import { tags as t } from '@lezer/highlight';
 
 import { EXAMPLES, type Example, type Language } from './examples';
+import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
 import './style.css';
 
 type Stream = 'stdout' | 'stderr' | 'system';
@@ -83,11 +85,27 @@ const shareButton = $<HTMLButtonElement>('share');
 const consoleEl = $<HTMLPreElement>('console');
 const statusEl = $<HTMLSpanElement>('status');
 const metricsEl = $<HTMLSpanElement>('metrics');
+const soundButton = $<HTMLButtonElement>('sound');
+const editorHost = $<HTMLElement>('editor');
+const outputPane = document.querySelector<HTMLElement>('.pane-output') ?? consoleEl.parentElement ?? consoleEl;
 
 const editorView = new EditorView({
   state: makeEditorState(),
   parent: $('editor'),
 });
+
+/** Mint ripple plus a soft click for every character the user types. */
+function onEditorUpdate(update: ViewUpdate) {
+  if (!update.docChanged || !motionAllowed()) return;
+  if (!update.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))) return;
+  const pos = update.state.selection.main.head;
+  const box = update.view.dom.getBoundingClientRect();
+  const caret = update.view.coordsAtPos(pos);
+  if (!caret) return;
+  const before = update.state.sliceDoc(Math.max(0, pos - 1), pos);
+  spark(editorHost, caret.left - box.left, caret.top - box.top, /\s/.test(before) ? 'space' : 'type');
+  play('type');
+}
 
 function makeEditorState() {
   return EditorState.create({
@@ -109,6 +127,7 @@ function makeEditorState() {
       syntaxHighlighting(forgeHighlight),
       EditorView.lineWrapping,
       forgeTheme,
+      EditorView.updateListener.of(onEditorUpdate),
       keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
     ],
   });
@@ -140,6 +159,7 @@ function clearConsole() {
 function setStatus(state: string, label: string) {
   statusEl.dataset.state = state;
   statusEl.textContent = label;
+  document.body.dataset.phase = state;
 }
 
 // ---------- worker ----------
@@ -190,6 +210,8 @@ function armRunLimit() {
   clearTimeout(runDeadline ?? undefined);
   runDeadline = window.setTimeout(() => {
     writeLine('system', `Stopped after ${RUN_LIMIT_MS / 1000}s — the program is still running.\n`);
+    flash(outputPane, 'is-shake', 600);
+    play('err');
     endRun('fail', 'timed out', true);
   }, RUN_LIMIT_MS);
 }
@@ -200,6 +222,16 @@ function reportExit(exitCode: number) {
   metricsEl.textContent = programStarted
     ? `compile ${formatMs(runStartedAt - compileStartedAt)} · run ${formatMs(now - runStartedAt)} · exit ${exitCode}`
     : `compile ${formatMs(now - compileStartedAt)} · exit ${exitCode}`;
+  flash(metricsEl, 'is-flash');
+  if (exitCode === 0) {
+    flash(outputPane, 'is-bloom', 900);
+    play('ok');
+    buzz(35);
+  } else {
+    flash(outputPane, 'is-shake', 600);
+    play('err');
+    buzz([25, 45, 25]);
+  }
   endRun(exitCode === 0 ? 'ok' : 'fail', exitCode === 0 ? 'done' : `exit ${exitCode}`, false);
 }
 
@@ -235,6 +267,7 @@ function run() {
   runButton.disabled = true;
   stopButton.disabled = false;
   setStatus('loading', 'starting…');
+  play('run');
 
   worker ??= createWorker();
   const message: RunMessage = {
@@ -315,7 +348,10 @@ function shareLink() {
   }
   navigator.clipboard
     .writeText(url.href)
-    .then(() => setStatus('ok', 'link copied'))
+    .then(() => {
+      setStatus('ok', 'link copied');
+      play('copy');
+    })
     .catch(() => setStatus('fail', 'copy blocked — use the address bar'));
 }
 
@@ -383,8 +419,19 @@ for (const example of EXAMPLES) {
   examplesSelect.appendChild(option);
 }
 
+function syncSoundButton() {
+  soundButton.setAttribute('aria-pressed', String(soundEnabled()));
+  soundButton.textContent = soundEnabled() ? 'sound on' : 'sound off';
+}
+
 runButton.addEventListener('click', run);
 stopButton.addEventListener('click', stop);
+syncSoundButton();
+soundButton.addEventListener('click', () => {
+  setSoundEnabled(!soundEnabled());
+  syncSoundButton();
+  if (soundEnabled()) play('copy');
+});
 clearButton.addEventListener('click', clearConsole);
 shareButton.addEventListener('click', shareLink);
 stdinToggle.addEventListener('click', () => toggleStdin());

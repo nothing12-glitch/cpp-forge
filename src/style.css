@@ -187,6 +187,7 @@ body::before {
 .pane {
   display: flex;
   flex-direction: column;
+  position: relative;
   min-width: 0;
   min-height: 0;
   background: var(--panel);
@@ -307,6 +308,7 @@ body::before {
 
 .editor {
   flex: 1;
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -476,6 +478,274 @@ body::before {
   .select,
   .link,
   .status {
-    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease, filter 0.18s ease;
+    transition:
+      border-color 0.18s ease,
+      color 0.18s ease,
+      background 0.18s ease,
+      filter 0.18s ease,
+      transform 0.12s ease,
+      box-shadow 0.2s ease;
+  }
+}
+
+/* ---------- feedback layer ---------- */
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0) scale(0.97);
+}
+
+.btn-sound[aria-pressed="false"] {
+  color: #5f6f66;
+}
+
+/* the heat pulse already says "busy"; a greyed-out Run button reads as dead */
+.btn-run:disabled {
+  opacity: 0.9;
+}
+
+.link {
+  position: relative;
+}
+
+.link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 1px;
+  width: 0;
+  background: var(--mint);
+  transition: width 0.24s ease;
+}
+
+.link:hover::after {
+  width: 100%;
+}
+
+.spark {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(61, 243, 127, 0.9), rgba(61, 243, 127, 0) 68%);
+}
+
+.spark-space {
+  width: 26px;
+  height: 10px;
+  margin: -5px 0 0 -13px;
+  background: radial-gradient(circle, rgba(125, 211, 252, 0.75), rgba(125, 211, 252, 0) 70%);
+}
+
+@keyframes aura-drift {
+  0%,
+  100% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, 3%, 0) scale(1.14);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.45);
+  }
+}
+
+@keyframes heat {
+  0%,
+  100% {
+    box-shadow: 0 0 24px rgba(61, 243, 127, 0.26);
+  }
+  50% {
+    box-shadow: 0 0 46px rgba(61, 243, 127, 0.6);
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  35% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes shake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  30%,
+  70% {
+    transform: translateX(3px);
+  }
+  50% {
+    transform: translateX(-3px);
+  }
+}
+
+@keyframes mint-flash {
+  from {
+    color: var(--mint);
+    text-shadow: 0 0 14px rgba(61, 243, 127, 0.65);
+  }
+  to {
+    color: var(--muted);
+    text-shadow: none;
+  }
+}
+
+@keyframes spark-out {
+  from {
+    opacity: 0.95;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body::after {
+    content: "";
+    position: fixed;
+    inset: -18%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(620px 460px at 30% 18%, rgba(61, 243, 127, 0.14), transparent 70%),
+      radial-gradient(760px 520px at 74% 72%, rgba(15, 157, 84, 0.13), transparent 72%);
+    animation: aura-drift 26s ease-in-out infinite;
+  }
+
+  .topbar > * {
+    animation: rise-in 0.5s ease-out both;
+  }
+
+  .topbar > *:nth-child(2) {
+    animation-delay: 0.08s;
+  }
+
+  .pane-editor {
+    animation: rise-in 0.6s 0.06s ease-out both;
+  }
+
+  .pane-output {
+    animation: rise-in 0.6s 0.14s ease-out both;
+  }
+
+  .footnote {
+    animation: rise-in 0.6s 0.22s ease-out both;
+  }
+
+  .console > span {
+    animation: line-in 0.22s ease-out both;
+  }
+
+  .status[data-state="loading"]::before,
+  .status[data-state="compiling"]::before,
+  .status[data-state="running"]::before {
+    animation: dot-pulse 1.3s ease-in-out infinite;
+  }
+
+  body[data-phase="loading"] .btn-run,
+  body[data-phase="compiling"] .btn-run,
+  body[data-phase="running"] .btn-run {
+    animation: heat 1.15s ease-in-out infinite;
+  }
+
+  .topbar {
+    position: relative;
+  }
+
+  body[data-phase="loading"] .topbar::after,
+  body[data-phase="compiling"] .topbar::after,
+  body[data-phase="running"] .topbar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(61, 243, 127, 0.85), transparent);
+    animation: sweep 1.3s linear infinite;
+  }
+
+  .metrics.is-flash {
+    animation: mint-flash 0.9s ease-out;
+  }
+
+  .pane.is-bloom::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(70% 80% at 50% 55%, rgba(61, 243, 127, 0.3), transparent 72%);
+    animation: bloom 0.9s ease-out forwards;
+  }
+
+  .pane.is-shake {
+    animation: shake 0.45s ease-in-out;
+    box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.35), 0 18px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .spark-type {
+    animation: spark-out 0.42s ease-out forwards;
+  }
+
+  .spark-space {
+    animation: spark-out 0.5s ease-out forwards;
   }
 }
