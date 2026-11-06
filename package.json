@@ -1,0 +1,26 @@
+{
+  "name": "cpp-forge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Compile and run C and C++ entirely in the browser with Clang 21 compiled to WebAssembly. No server.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "assets": "node scripts/build-assets.mjs"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.1",
+    "@lezer/highlight": "^1.2.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4"
+  }
+}

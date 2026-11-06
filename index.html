@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cpp-forge — C and C++ in the browser</title>
+    <meta
+      name="description"
+      content="Compile and run C and C++ entirely in your browser with Clang 21 compiled to WebAssembly. No server, no install."
+    />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M13 2 4 13h6l-1 9 9-11h-6l1-9Z" />
+        </svg>
+        <h1>cpp<span class="dot">·</span>forge</h1>
+        <span class="badge" id="toolchain-badge">Clang 21 · C++20</span>
+      </div>
+      <div class="topbar-right">
+        <span class="status" id="status" data-state="idle">idle</span>
+        <a class="link" href="https://github.com/nothing12-glitch/cpp-forge" target="_blank" rel="noreferrer">source</a>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="pane pane-editor" aria-label="Source code">
+        <div class="toolbar">
+          <select id="language" class="select" aria-label="Language">
+            <option value="cpp">C++</option>
+            <option value="c">C</option>
+          </select>
+          <select id="standard" class="select" aria-label="Language standard" hidden></select>
+          <select id="examples" class="select" aria-label="Example">
+            <option value="">load example…</option>
+          </select>
+          <div class="spacer"></div>
+          <button id="run" class="btn btn-run" type="button">
+            Run<span class="kbd">Ctrl+Enter</span>
+          </button>
+          <button id="stop" class="btn btn-stop" type="button" disabled>Stop</button>
+        </div>
+        <div id="editor" class="editor"></div>
+        <div class="stdin">
+          <button id="stdin-toggle" class="stdin-toggle" type="button" aria-expanded="false">
+            stdin
+          </button>
+          <textarea id="stdin" class="stdin-box" rows="3" placeholder="input for the program" hidden></textarea>
+        </div>
+      </section>
+
+      <section class="pane pane-output" aria-label="Program output">
+        <div class="output-head">
+          <span class="output-title">output</span>
+          <span class="metrics" id="metrics"></span>
+          <div class="spacer"></div>
+          <button id="share" class="btn btn-ghost" type="button">share link</button>
+          <button id="clear" class="btn btn-ghost" type="button">clear</button>
+        </div>
+        <pre id="console" class="console" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <footer class="footnote">
+      Compiles to wasm32-wasi and runs inside your browser — nothing is uploaded. First run downloads the
+      ~23&nbsp;MB toolchain, then it is cached.
+    </footer>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

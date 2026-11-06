@@ -1,0 +1,5 @@
+# The vendored engine files are compared against upstream, so keep their line endings intact.
+* text=auto eol=lf
+*.png binary
+*.gz binary
+*.o binary
