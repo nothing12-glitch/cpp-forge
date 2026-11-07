@@ -32,6 +32,7 @@ import { explainErrors } from './explain';
 import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages';
 import { markSolved, outputMatches, solvedIds, TASKS, type Task } from './tasks';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
+import { initLenses, closeLens } from './lenses';
 import { initPipeline, closePipeline } from './pipeline';
 import './style.css';
 
@@ -221,6 +222,8 @@ const SHORTCUTS: [string, string][] = [
   ['Esc', 'stop the program, close an overlay'],
   ['Ctrl+/', 'this list'],
   ['Ctrl+.', 'how it compiles'],
+  ['Ctrl+M', 'memory lens'],
+  ['Ctrl+O', 'the -O0…-O3 ladder'],
   ['Ctrl+J', 'challenges'],
   ['Ctrl+L', 'clear the output'],
 ];
@@ -295,6 +298,9 @@ function setLanguage(next: Language, notify = false) {
   langChip.classList.toggle('is-soon', !info.runnable);
   runButton.disabled = !info.runnable && !busy;
   inspectButton.disabled = !info.runnable;
+  $<HTMLButtonElement>('memory').disabled = !info.runnable;
+  $<HTMLButtonElement>('compare').disabled = !info.runnable;
+  if (!info.runnable) closeLens();
   inspectButton.title = info.runnable
     ? 'Show how clang turns this file into wasm'
     : `${info.label} is not compiled by clang, so the pipeline has nothing to show`;
@@ -600,6 +606,7 @@ function run() {
   }
   if (narrow.matches) setView('output');
   closePipeline();
+  closeLens();
   clearConsole();
   programStarted = false;
   compileStartedAt = performance.now();
@@ -798,6 +805,18 @@ initPipeline(() => ({
   language: clangLanguage(),
   standard: standardSelect.value,
 }));
+initLenses(
+  () => ({
+    code: editorView.state.doc.toString(),
+    language: clangLanguage(),
+    standard: standardSelect.value,
+    stdin: stdinBox.value,
+  }),
+  () => {
+    if (narrow.matches) setView('output');
+  },
+);
+inspectButton.addEventListener('click', closeLens);
 languageSelect.addEventListener('change', () => {
   setLanguage(currentLanguage());
   editorView.focus();
@@ -861,6 +880,14 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     if (isRunnable(currentLanguage())) $('inspect').click();
     else toast('the compile pipeline only covers C and C++');
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
+    event.preventDefault();
+    if (isRunnable(currentLanguage())) $('memory').click();
+    else toast('the memory lens needs a compiler this build has');
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+    event.preventDefault();
+    if (isRunnable(currentLanguage())) $('compare').click();
+    else toast('the optimisation ladder needs a compiler this build has');
   } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'j') {
     event.preventDefault();
     if (taskSheet.hidden) showTasks();

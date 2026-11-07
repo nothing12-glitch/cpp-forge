@@ -341,3 +341,220 @@
     box-shadow: 0 0 12px rgba(61, 243, 127, 0.7);
   }
 }
+
+/* ---------- lenses: the optimisation ladder and the memory readout ---------- */
+
+.lens {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px;
+  padding: 16px;
+  overflow: auto;
+  background: var(--sunk);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.lens[hidden] {
+  display: none;
+}
+
+.lens-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.lens-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+
+.lens-total {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.lens-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.lens-wait {
+  padding: 18px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.level,
+.mem-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 170px;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+
+.level-name,
+.mem-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--mint);
+}
+
+.level-bars,
+.mem-bar {
+  display: grid;
+  gap: 5px;
+}
+
+.level-bars i,
+.mem-bar i {
+  display: block;
+  height: 8px;
+  width: 2%;
+  border-radius: 999px;
+  background: var(--mint-deep);
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.level-bars .time {
+  background: var(--hot);
+}
+
+.level-value,
+.mem-value {
+  margin: 0;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.level[data-state='waiting'] i,
+.level[data-state='running'] i {
+  background: rgba(61, 243, 127, 0.18);
+}
+
+.level[data-state='running'] .level-value::after {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  animation: lens-dots 1s steps(4, end) infinite;
+}
+
+.level[data-state='failed'] {
+  border-color: rgba(255, 107, 107, 0.45);
+}
+
+.level[data-state='failed'] .level-value {
+  color: var(--err);
+}
+
+.mem-facts {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.mem-sections {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mem-sections li {
+  position: relative;
+  padding: 6px 10px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.mem-sections li i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(61, 243, 127, 0.14);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mem-sections li b {
+  float: right;
+  color: var(--mint);
+  font-weight: 500;
+}
+
+@keyframes lens-dots {
+  from {
+    content: '';
+  }
+
+  to {
+    content: '....';
+  }
+}
+
+@media (max-width: 760px) {
+  .lens {
+    margin: 8px;
+    padding: 12px;
+  }
+
+  .level,
+  .mem-row {
+    grid-template-columns: 96px 1fr 104px;
+    gap: 10px;
+    padding: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lens.is-settled .level,
+  .lens.is-settled .mem-row {
+    animation: rise-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .lens.is-settled .level:nth-child(2),
+  .lens.is-settled .mem-row:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+
+  .lens.is-settled .level:nth-child(3),
+  .lens.is-settled .mem-row:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+
+  .lens.is-settled .level:nth-child(4),
+  .lens.is-settled .mem-row:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+
+  .lens.is-settled .mem-row:nth-child(5) {
+    animation-delay: 0.2s;
+  }
+
+  .lens.is-settled .mem-row:nth-child(6) {
+    animation-delay: 0.25s;
+  }
+}

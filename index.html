@@ -70,6 +70,12 @@
           <button id="inspect" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="pipeline">
             how it compiles
           </button>
+          <button id="compare" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="lens">
+            -O0…-O3
+          </button>
+          <button id="memory" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="lens">
+            memory
+          </button>
           <button id="copy-output" class="btn btn-ghost" type="button">copy</button>
           <button id="share" class="btn btn-ghost" type="button">share link</button>
           <button id="clear" class="btn btn-ghost" type="button">clear</button>
@@ -88,6 +94,17 @@
           <div class="artifact-tabs" id="artifact-tabs"></div>
           <pre id="artifact-body" class="artifact-body" aria-live="polite"></pre>
           <p class="pipeline-note" id="pipeline-note">waiting for the first pass…</p>
+        </div>
+
+        <div id="lens" class="lens" hidden>
+          <div class="lens-head">
+            <span class="lens-title" id="lens-title">lens</span>
+            <span class="lens-total" id="lens-total"></span>
+            <div class="spacer"></div>
+            <button id="lens-close" class="btn btn-ghost" type="button">back to output</button>
+          </div>
+          <div class="lens-body" id="lens-body"></div>
+          <p class="lens-note" id="lens-note"></p>
         </div>
       </section>
     </main>

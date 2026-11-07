@@ -1,14 +1,19 @@
 /*
  * Inspection pass for cpp-forge: compiles the same source with the same Clang build as
  * clang-worker.mjs and reports what every stage of the pipeline actually produced — a real
- * `-ftime-trace` breakdown, the LLVM IR, the linked wasm module and its section sizes. Nothing is
- * executed here, the program is only compiled.
+ * `-ftime-trace` breakdown, the LLVM IR, the linked wasm module and its section sizes.
  *
- * Protocol: page → { type: 'inspect', code, language: 'c' | 'cpp', standard? }
- *           worker → { type: 'stage', id, status, … } | { type: 'artifact', id, text, note } | { type: 'done' }
+ * Protocol: page → { type: 'inspect' | 'compare' | 'memscan', code, language: 'c' | 'cpp', standard?, stdin? }
+ *           worker → { type: 'stage', id, status, … } | { type: 'artifact', id, text, note }
+ *                    | { type: 'level', id, … } | { type: 'memory', … } | { type: 'done' }
+ *
+ * `inspect` and `compare` only compile. `memscan` really runs the program in this worker, because
+ * the growth of the linear memory is only visible while the program is alive.
  *
  * Kept separate from the vendored engine so that one stays byte-for-byte upstream.
  */
+
+import { createWasi } from './wasi-host.mjs';
 
 const CLANG_BASE = 'https://cdn.jsdelivr.net/npm/@yowasp/clang@21.1.4-3/';
 const ASSETS = new URL('../assets/', import.meta.url);
@@ -140,19 +145,140 @@ function formatBytes(count) {
   return count < 1024 ? `${count} B` : `${(count / 1024).toFixed(1)} kB`;
 }
 
-self.onmessage = async (event) => {
-  const data = event.data || {};
-  if (data.type !== 'inspect') return;
+/** Everything the three passes share: which driver, which file, which libraries. */
+async function prepare(data) {
   const language = data.language === 'c' ? 'c' : 'cpp';
   const driver = language === 'c' ? 'clang' : 'clang++';
   const file = language === 'c' ? 'main.c' : 'main.cpp';
   const std = language === 'c' ? `-std=${data.standard || 'c17'}` : '-std=c++20';
-  const base = [std, '-O2', '-Wall', '-fno-color-diagnostics'];
-  const code = String(data.code);
-  const files = { [file]: code };
+  const files = { [file]: String(data.code) };
   const runtime = language === 'c' ? {} : await cppRuntime();
-  const linkLibs = language === 'c' ? ['-lm'] : runtime['eh.o'] ? ['eh.o'] : [];
-  const include = runtime.include ? ['-isystem', '/include'] : [];
+  return {
+    language,
+    driver,
+    file,
+    std,
+    files,
+    runtime,
+    linkLibs: language === 'c' ? ['-lm'] : runtime['eh.o'] ? ['eh.o'] : [],
+    include: runtime.include ? ['-isystem', '/include'] : [],
+  };
+}
+
+const LEVELS = ['-O0', '-O1', '-O2', '-O3'];
+
+/** The same source linked four times, once per optimisation level, with the honest cost of each. */
+async function runCompare(data) {
+  const { driver, file, std, files, runtime, linkLibs, include } = await prepare(data);
+  if (!toolchain) toolchain = await import(`${CLANG_BASE}gen/bundle.js`);
+  const base = [std, '-Wall', '-fno-color-diagnostics'];
+  for (const level of LEVELS) {
+    self.postMessage({ type: 'level', id: level, status: 'running' });
+    const started = performance.now();
+    const linked = await withPch(driver, [...base, level, ...include, file, ...linkLibs, '-o', 'main.wasm'], files, runtime);
+    const module = linked?.['main.wasm'];
+    self.postMessage({
+      type: 'level',
+      id: level,
+      status: module ? 'done' : 'failed',
+      ms: Math.round(performance.now() - started),
+      bytes: module?.length ?? 0,
+      sections: module ? wasmSections(module) : [],
+      note: module ? '' : lastDiagnostics.slice(0, 300),
+    });
+  }
+  self.postMessage({ type: 'done' });
+}
+
+/**
+ * The linear memory as the machine sees it: what the module declares, where the heap starts, and how
+ * far it grew while the program ran. Growth is sampled at every output write, so `peak` is the high
+ * water mark between prints — a real measurement, not an estimate, but only as dense as the output.
+ *
+ * This link is asked to export __heap_base/__data_end/__stack_pointer; without them the linker keeps
+ * those globals internal and the lens can only report what the memory itself says.
+ */
+async function runMemscan(data) {
+  const { driver, file, std, files, runtime, linkLibs, include } = await prepare(data);
+  if (!toolchain) toolchain = await import(`${CLANG_BASE}gen/bundle.js`);
+  const base = [std, '-O2', '-Wall', '-fno-color-diagnostics'];
+  const symbols = ['-Wl,--export=__heap_base', '-Wl,--export=__data_end', '-Wl,--export=__stack_pointer'];
+  const linked = await withPch(driver, [...base, ...symbols, ...include, file, ...linkLibs, '-o', 'main.wasm'], files, runtime);
+  const module = linked?.['main.wasm'];
+  if (!module) {
+    self.postMessage({ type: 'memory', status: 'failed', note: lastDiagnostics.slice(0, 400) });
+    self.postMessage({ type: 'done' });
+    return;
+  }
+
+  const compiled = new WebAssembly.Module(module);
+  const needsImportedMemory = WebAssembly.Module.imports(compiled).some((item) => item.kind === 'memory');
+  let memory = null;
+  let peak = 0;
+  const wasi = createWasi({
+    args: ['main'],
+    stdin: new TextEncoder().encode(String(data.stdin || '')),
+    write: () => {
+      if (memory) peak = Math.max(peak, memory.buffer.byteLength);
+    },
+  });
+  const imports = { ...wasi.imports };
+  if (needsImportedMemory) {
+    memory = new WebAssembly.Memory({ initial: 256, maximum: 4096 });
+    imports.env = { ...(imports.env || {}), memory };
+  }
+
+  const instance = await WebAssembly.instantiate(compiled, imports);
+  if (!memory) memory = instance.exports.memory;
+  const declared = memory.buffer.byteLength;
+  const global = (name) => {
+    const value = instance.exports[name];
+    return value && typeof value.value === 'number' ? value.value : null;
+  };
+  const before = memory.buffer.byteLength;
+  let exitCode = null;
+  let crashed = '';
+  try {
+    exitCode = wasi.start(instance);
+  } catch (error) {
+    crashed = (error && error.message) || String(error);
+  }
+  const after = memory.buffer.byteLength;
+
+  self.postMessage({
+    type: 'memory',
+    status: 'done',
+    moduleBytes: module.length,
+    sections: wasmSections(module),
+    pages: declared / 65536,
+    declared,
+    before,
+    peak: Math.max(peak, after),
+    after,
+    grew: Math.max(0, Math.max(peak, after) - before),
+    heapBase: global('__heap_base'),
+    dataEnd: global('__data_end'),
+    stackPointer: global('__stack_pointer'),
+    shared: needsImportedMemory,
+    exitCode,
+    crashed,
+  });
+  self.postMessage({ type: 'done' });
+}
+
+self.onmessage = async (event) => {
+  const data = event.data || {};
+  try {
+    if (data.type === 'compare') return await runCompare(data);
+    if (data.type === 'memscan') return await runMemscan(data);
+  } catch (error) {
+    self.postMessage({ type: 'memory', status: 'failed', note: (error && error.message) || String(error) });
+    self.postMessage({ type: 'done' });
+    return;
+  }
+  if (data.type !== 'inspect') return;
+  const { language, driver, file, std, files, runtime, linkLibs, include } = await prepare(data);
+  const base = [std, '-O2', '-Wall', '-fno-color-diagnostics'];
 
   const started = performance.now();
   const since = (t) => Math.round(performance.now() - t);

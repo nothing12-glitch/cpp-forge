@@ -37,7 +37,13 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   (`-fsyntax-only`, `-S -emit-llvm`, `-c -ftime-trace`, link) and the panel reports the measured time of
   each one, the top `-ftime-trace` breakdown of codegen, the LLVM IR text and the linked `wasm32-wasi`
   module with its section sizes, exports and imports. Nothing is executed — it is the compiler talking,
-  not a simulation
+  not a simulation (`Ctrl+.`)
+- **-O0…-O3** links the same file four times and puts the four modules side by side: real byte counts,
+  the code section inside each, and the wall-clock cost of every link, with the size difference of
+  `-O3` over `-O0` as the headline (`Ctrl+O`)
+- **memory** runs the program once more inside the inspection worker and reads its linear memory while
+  it runs: what the module declares, where `__heap_base` and the static data end, how far memory grew,
+  the exit code and the section stack of the module it executed (`Ctrl+M`)
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
 - **phone layout**: one pane at a time with a `code` / `output` bar in the thumb zone, Run and Stop moved
   into it, 44 px targets, 16 px inputs so iOS does not zoom, and safe-area padding for the notch
@@ -64,6 +70,14 @@ These come from running a real compiler in a sandbox, not from a missing feature
 - **The inspection pass is not free**: it really runs four extra compiler passes, so *how it compiles*
   takes roughly 5–12 s depending on the source. The timings it shows are wall-clock time inside the
   sandbox, which is why codegen looks slow — the `-ftime-trace` numbers inside it are the compiler's own.
+- **The ladder is four links, so it is slower than one**: expect 8–25 s on a file that pulls in the
+  standard library. It re-links your source with `-O0`, `-O1`, `-O2` and `-O3`; only the size and the
+  compiler time change, your program never runs there.
+- **The memory lens executes the program a second time**, in the inspection worker, and samples the
+  memory at every write to stdout/stderr. A program that allocates while staying silent therefore shows
+  a floor, not a ceiling; a program that never returns is given up on after 20 s. The lens link adds
+  `--export=__heap_base --export=__data_end --export=__stack_pointer`, so its module is a few bytes
+  larger than the one Run uses.
 - A program is stopped by killing the worker, so output after the kill point is lost.
 
 ## Development
