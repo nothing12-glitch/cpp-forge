@@ -59,6 +59,7 @@ const DETECT_KEY = 'cpp-forge.detect';
 const FONT_KEY = 'cpp-forge.font';
 const FONT_STEPS = [11.5, 12.5, 13.5, 15, 16.5, 18];
 const DETECT_DELAY_MS = 800;
+const SAVE_DELAY_MS = 400;
 
 const forgeTheme = EditorView.theme({
   '&': { height: '100%', backgroundColor: 'transparent' },
@@ -125,6 +126,7 @@ const narrow = window.matchMedia('(max-width:760px)');
 
 let toastTimer: number | undefined;
 let detectTimer: number | undefined;
+let saveTimer: number | undefined;
 let fontIndex = Number(localStorage.getItem(FONT_KEY)) || 2;
 let activeTask: Task | null = null;
 let lastStdout = '';
@@ -150,6 +152,7 @@ function sparkAtCaret(update: ViewUpdate) {
 function onEditorUpdate(update: ViewUpdate) {
   if (!update.docChanged) return;
   updateDocStats();
+  scheduleSave();
   if (update.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))) {
     sparkAtCaret(update);
     scheduleDetection();
@@ -676,6 +679,17 @@ function decodeBase64Url(value: string): string {
   return new TextDecoder().decode(bytes);
 }
 
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(persist, SAVE_DELAY_MS);
+}
+
+/** A closing tab must not drop the keystrokes still sitting inside the debounce window. */
+function flushSave() {
+  clearTimeout(saveTimer);
+  persist();
+}
+
 function persist() {
   // Startup sets the language before the saved session is read; writing then would erase it.
   if (restoring) return;
@@ -800,6 +814,8 @@ clearButton.addEventListener('click', clearConsole);
 shareButton.addEventListener('click', shareLink);
 copyOutputButton.addEventListener('click', copyOutput);
 stdinToggle.addEventListener('click', () => toggleStdin());
+stdinBox.addEventListener('input', scheduleSave);
+window.addEventListener('pagehide', flushSave);
 initPipeline(() => ({
   code: editorView.state.doc.toString(),
   language: clangLanguage(),
