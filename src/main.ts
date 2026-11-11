@@ -29,6 +29,7 @@ import { tags as t } from '@lezer/highlight';
 
 import { EXAMPLES, type Example, type Language } from './examples';
 import { explainErrors } from './explain';
+import { cycleTheme, initTheme } from './display';
 import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages';
 import { diffOutput, firstDifference, markSolved, outputMatches, solvedIds, TASKS, type DiffRow, type Task } from './tasks';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
@@ -70,14 +71,14 @@ const forgeTheme = EditorView.theme({
 });
 
 const forgeHighlight = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword], color: '#3df37f' },
-  { tag: [t.typeName, t.className, t.namespace], color: '#7dd3fc' },
-  { tag: [t.function(t.variableName), t.macroName], color: '#c4b5fd' },
-  { tag: [t.string, t.special(t.string)], color: '#7ce8c3' },
-  { tag: [t.number, t.bool, t.null], color: '#ffb066' },
+  { tag: [t.keyword, t.controlKeyword], color: 'var(--mint)' },
+  { tag: [t.typeName, t.className, t.namespace], color: 'var(--line-text)' },
+  { tag: [t.function(t.variableName), t.macroName], color: 'var(--hot)' },
+  { tag: [t.string, t.special(t.string)], color: 'var(--ok)' },
+  { tag: [t.number, t.bool, t.null], color: 'var(--err)' },
   { tag: t.comment, color: '#5b7268', fontStyle: 'italic' },
-  { tag: [t.operator, t.punctuation, t.separator], color: '#8fa096' },
-  { tag: t.propertyName, color: '#9ae6b4' },
+  { tag: [t.operator, t.punctuation, t.separator], color: 'var(--muted)' },
+  { tag: t.propertyName, color: 'var(--mint)' },
 ]);
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -125,6 +126,7 @@ const taskSheet = $<HTMLElement>('task-sheet');
 const taskList = $<HTMLElement>('task-list');
 const taskFlag = $<HTMLElement>('task-flag');
 const taskDiffEl = $<HTMLElement>('task-diff');
+const skinButton = $<HTMLButtonElement>('skin');
 const narrow = window.matchMedia('(max-width:760px)');
 
 let toastTimer: number | undefined;
@@ -877,6 +879,7 @@ function syncSoundButton() {
 
 runButton.addEventListener('click', run);
 stopButton.addEventListener('click', stop);
+initTheme(skinButton);
 syncSoundButton();
 soundButton.addEventListener('click', () => {
   setSoundEnabled(!soundEnabled());
@@ -957,6 +960,9 @@ fontPlus.addEventListener('click', () => {
   fontIndex += 1;
   applyFontSize();
   toast(`editor text ${FONT_STEPS[Math.min(FONT_STEPS.length - 1, fontIndex)]}px`, 1400);
+});
+skinButton.addEventListener('click', () => {
+  toast(`colors — ${cycleTheme(skinButton)}`, 1400);
 });
 viewTabs.addEventListener('click', (event) => {
   const tab = (event.target as HTMLElement).closest<HTMLElement>('.view-tab');

@@ -25,6 +25,10 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   to another language (turn that off in the same sheet)
 - CodeMirror 6 editor: syntax highlighting, folding, bracket matching, autocomplete, undo history,
   plus an `A−`/`A+` text size that is remembered too
+- **three colour schemes**: the `colors` button in the view group cycles mint → amber → ice and the
+  choice is remembered on the device. The whole palette is derived from one accent, so the other two are
+  the same site in different light rather than a second stylesheet, and every pair clears the contrast
+  bar for text on its own background
 - stdin panel, per-stream coloured output, compile/run timings, exit code and a live
   lines/chars/bytes counter for the buffer
 - seventeen built-in examples, filtered to the language on screen, including one that deliberately
