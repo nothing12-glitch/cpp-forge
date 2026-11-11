@@ -79,22 +79,43 @@ const RULES: Rule[] = [
 const GENERIC =
   'clang reports the first error it can prove, and the rest usually cascade from it. Fix this line and run again — the count of errors falling is the signal you are looking for.';
 
-/** Hints for the diagnostics in this console text, deduplicated and capped so the panel stays readable. */
-export function explainErrors(text: string): { line: string; hint: string }[] {
+/** Six different kinds of problem is already a wall of text; the seventh is told as a number. */
+const HINT_LIMIT = 6;
+
+export interface HintGroup {
+  line: string;
+  hint: string;
+  count: number;
+}
+
+export interface Diagnosis {
+  groups: HintGroup[];
+  hidden: number;
+}
+
+/**
+ * Every diagnostic in this console text, folded so that the same complaint reported four times is one
+ * card that says four. Only the message text is matched, never the line number, so a hint sits under
+ * the error it belongs to rather than in place of it.
+ */
+export function explainErrors(text: string): Diagnosis {
   const errors = text
     .split('\n')
     .map((raw) => raw.trim())
     .filter((line) => line.includes('error:'));
-  const found: { line: string; hint: string }[] = [];
-  const seen = new Set<string>();
+  const groups: HintGroup[] = [];
+  const byHint = new Map<string, HintGroup>();
   for (const line of errors) {
-    for (const rule of RULES) {
-      if (!rule.test.test(line) || seen.has(rule.hint)) continue;
-      seen.add(rule.hint);
-      found.push({ line, hint: rule.hint });
-      break;
+    const rule = RULES.find((candidate) => candidate.test.test(line));
+    const hint = rule?.hint ?? GENERIC;
+    const seen = byHint.get(hint);
+    if (seen) {
+      seen.count += 1;
+      continue;
     }
+    const group: HintGroup = { line, hint, count: 1 };
+    byHint.set(hint, group);
+    groups.push(group);
   }
-  if (!found.length && errors.length) found.push({ line: errors[0], hint: GENERIC });
-  return found.slice(0, 4);
+  return { groups: groups.slice(0, HINT_LIMIT), hidden: Math.max(0, groups.length - HINT_LIMIT) };
 }

@@ -557,22 +557,28 @@ function reportExit(exitCode: number) {
   endRun(exitCode === 0 ? 'ok' : 'fail', exitCode === 0 ? 'done' : `exit ${exitCode}`, false);
 }
 
-/** Plain words under the diagnostics, but only when there is something to translate. */
+/** Plain words under the diagnostics, one card per kind of problem rather than one per run. */
 function showHints(text: string) {
-  const hints = explainErrors(text);
+  const { groups, hidden } = explainErrors(text);
   hintsEl.textContent = '';
-  if (!hints.length) {
+  if (!groups.length) {
     hintsEl.hidden = true;
     return;
   }
-  for (const hint of hints) {
+  for (const group of groups) {
     const card = document.createElement('div');
     card.className = 'hint';
     const line = document.createElement('b');
-    line.textContent = hint.line;
-    line.title = hint.line;
-    card.append(line, document.createTextNode(hint.hint));
+    line.textContent = group.count > 1 ? `${group.line}  ×${group.count}` : group.line;
+    line.title = group.line;
+    card.append(line, document.createTextNode(group.hint));
     hintsEl.appendChild(card);
+  }
+  if (hidden) {
+    const more = document.createElement('p');
+    more.className = 'hint-more';
+    more.textContent = `+ ${hidden} further ${hidden === 1 ? 'kind' : 'kinds'} of problem — clear these first, the rest usually fall with them`;
+    hintsEl.appendChild(more);
   }
   hintsEl.hidden = false;
 }

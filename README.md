@@ -42,8 +42,10 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   marks the first line apart. The task's own hint is not part of the first miss — the panel counts down
   the blind tries you have left and opens the hint on the third, so the diff is what you read first, and
   a solve clears the count
-- **error hints**: when clang stops, the diagnostics are translated into plain words next to the panel —
-  matched per message, with a fallback that explains why later errors usually cascade
+- **error hints**: when clang stops, every kind of diagnostic is translated into plain words next to the
+  panel rather than only the first. Identical complaints fold into one card that says `×3`, the list
+  caps at six kinds and the remainder becomes a line telling you to clear these first, because the rest
+  usually cascades; a message no rule matches falls back to that same explanation
 - **how it compiles** opens the real pipeline: the same source goes through four extra compiler passes
   (`-fsyntax-only`, `-S -emit-llvm`, `-c -ftime-trace`, link) and the panel reports the measured time of
   each one, the top `-ftime-trace` breakdown of codegen, the LLVM IR text and the linked `wasm32-wasi`
