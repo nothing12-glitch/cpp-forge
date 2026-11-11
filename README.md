@@ -38,8 +38,10 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   fails to compile
 - **challenges**: ten tasks with starter code, input and an expected output; when the program exits 0
   the console is compared line by line and the task is ticked on the device (`Ctrl+J`). When the exit
-  code is clean but the answer is wrong, a **diff** panel puts expected and printed side by side,
-  marks the first line apart and repeats the task's hint
+  code is clean but the answer is wrong, a **diff** panel puts expected and printed side by side and
+  marks the first line apart. The task's own hint is not part of the first miss — the panel counts down
+  the blind tries you have left and opens the hint on the third, so the diff is what you read first, and
+  a solve clears the count
 - **error hints**: when clang stops, the diagnostics are translated into plain words next to the panel —
   matched per message, with a fallback that explains why later errors usually cascade
 - **how it compiles** opens the real pipeline: the same source goes through four extra compiler passes

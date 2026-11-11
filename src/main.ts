@@ -56,6 +56,8 @@ type WorkerMessage =
 const C_STANDARDS = ['c89', 'c99', 'c11', 'c17', 'c23'];
 const RUN_LIMIT_MS = 15_000;
 const STORAGE_KEY = 'cpp-forge.state';
+const ATTEMPTS_KEY = 'cpp-forge.attempts';
+const HINT_AFTER = 3;
 const LANG_KEY = 'cpp-forge.language';
 const DETECT_KEY = 'cpp-forge.detect';
 const FONT_KEY = 'cpp-forge.font';
@@ -579,14 +581,39 @@ function checkTask() {
   if (!activeTask) return;
   if (outputMatches(activeTask, lastStdout)) {
     hideTaskDiff();
+    forgetFailures(activeTask.id);
     const firstTime = markSolved(activeTask.id);
     renderTaskList();
     toast(firstTime ? `solved — ${activeTask.title}` : `still correct — ${activeTask.title}`);
     flash(taskFlag, 'is-flash');
   } else {
-    showTaskDiff(activeTask, lastStdout);
+    showTaskDiff(activeTask, lastStdout, noteFailure(activeTask.id));
     toast('output does not match — the panel below shows the first line apart');
   }
+}
+
+function attempts(): Record<string, number> {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(ATTEMPTS_KEY) ?? '{}');
+    return stored && typeof stored === 'object' ? (stored as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Counted per task on this device, so the hint arrives on the third blind try and not on the first. */
+function noteFailure(id: string): number {
+  const store = attempts();
+  store[id] = (store[id] ?? 0) + 1;
+  localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(store));
+  return store[id];
+}
+
+function forgetFailures(id: string): void {
+  const store = attempts();
+  if (!(id in store)) return;
+  delete store[id];
+  localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(store));
 }
 
 function hideTaskDiff() {
@@ -602,7 +629,7 @@ function diffCell(role: 'no' | 'want' | 'got', row: DiffRow | null, text: string
 }
 
 /** A run that exits 0 can still be wrong; this says which line the checker disagreed on. */
-function showTaskDiff(task: Task, actual: string) {
+function showTaskDiff(task: Task, actual: string, tries: number) {
   const rows = diffOutput(task.expect, actual);
   const first = firstDifference(rows);
   taskDiffEl.textContent = '';
@@ -635,7 +662,11 @@ function showTaskDiff(task: Task, actual: string) {
 
   const hint = document.createElement('p');
   hint.className = 'task-diff-hint';
-  hint.textContent = `hint — ${task.hint}`;
+  const left = HINT_AFTER - tries;
+  hint.textContent =
+    left > 0
+      ? `${left} more ${left === 1 ? 'try' : 'tries'} without the hint — the panel above already says which line goes wrong`
+      : `hint — ${task.hint}`;
   taskDiffEl.appendChild(hint);
 
   taskDiffEl.hidden = false;
