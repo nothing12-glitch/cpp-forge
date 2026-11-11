@@ -111,6 +111,8 @@ function open(next: 'compare' | 'memory') {
   revealOutput();
   panel.hidden = false;
   consoleEl.hidden = true;
+  compareButton.setAttribute('aria-expanded', String(next === 'compare'));
+  memoryButton.setAttribute('aria-expanded', String(next === 'memory'));
   titleEl.textContent = next === 'compare' ? 'optimisation ladder · four real links of the same file' : 'memory lens · the linear memory of the module that Run executes';
   noteEl.textContent = 'working…';
   totalEl.textContent = '';
@@ -245,14 +247,16 @@ function onMemory(message: MemoryMessage) {
 
 compareButton.addEventListener('click', () => open('compare'));
 memoryButton.addEventListener('click', () => open('memory'));
-closeButton.addEventListener('click', () => {
-  panel.hidden = true;
-  consoleEl.hidden = false;
+closeButton.addEventListener('click', closeLens);
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !panel.hidden) closeLens();
 });
 
 export function closeLens(): void {
   panel.hidden = true;
   consoleEl.hidden = false;
+  compareButton.setAttribute('aria-expanded', 'false');
+  memoryButton.setAttribute('aria-expanded', 'false');
 }
 
 export function initLenses(read: LensSource, reveal: () => void): void {
