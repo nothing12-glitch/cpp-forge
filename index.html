@@ -22,6 +22,7 @@
       </div>
       <div class="topbar-right">
         <span class="status" id="status" data-state="idle">idle</span>
+        <button id="sketches" class="btn btn-ghost" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="sketch-sheet">my code</button>
         <button id="tasks" class="btn btn-ghost" type="button" aria-haspopup="dialog">challenges</button>
         <button id="help" class="btn btn-icon" type="button" aria-haspopup="dialog" aria-label="Keyboard shortcuts">?</button>
         <button id="sound" class="btn btn-sound" type="button" aria-pressed="true">sound on</button>
@@ -143,6 +144,28 @@
           Each task runs against an expected output. Solve it and it is ticked on this device.
         </p>
         <div class="task-list" id="task-list"></div>
+      </div>
+    </div>
+
+    <div id="sketch-sheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sketch-title">
+      <div class="sheet-card">
+        <h2 id="sketch-title">my code</h2>
+        <p class="sheet-hint">
+          Sketches are saved in this browser only. Export them as a JSON file to carry the whole set to
+          another device.
+        </p>
+        <div class="sketch-save">
+          <input id="sketch-name" class="sketch-name" type="text" placeholder="name this sketch (optional)" />
+          <button id="sketch-save" class="btn btn-run" type="button">save current</button>
+        </div>
+        <div class="sketch-list" id="sketch-list"></div>
+        <div class="sketch-foot">
+          <button id="sketch-export" class="btn btn-ghost" type="button">export json</button>
+          <button id="sketch-import" class="btn btn-ghost" type="button">import json</button>
+          <input id="sketch-file" type="file" accept="application/json,.json" hidden />
+          <div class="spacer"></div>
+          <button id="sketch-close" class="btn btn-ghost" type="button">close</button>
+        </div>
       </div>
     </div>
 

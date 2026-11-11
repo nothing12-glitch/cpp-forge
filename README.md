@@ -47,13 +47,17 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   it runs: what the module declares, where `__heap_base` and the static data end, how far memory grew,
   the exit code and the section stack of the module it executed. Above the numbers the lens draws the
   measured series itself — heap bytes against the moment of every output write (`Ctrl+M`)
+- **my code**: up to forty named sketches kept in this browser. Saving takes the buffer with its
+  language and stdin; opening puts all three back. The whole set exports to a JSON file and imports
+  again, merged by name, so a sketch can move between devices without ever touching a server (`Ctrl+K`)
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
 - **phone layout**: one pane at a time with a `code` / `output` bar in the thumb zone, Run and Stop moved
   into it, 44 px targets, 16 px inputs so iOS does not zoom, and safe-area padding for the notch
 - feedback layer: sparks at the caret while typing, a heat pulse on Run while Clang works, a mint
   bloom on a clean exit, a shake on failure, plus optional sound and haptics — every effect is
   dropped when the system asks for reduced motion
-- the last session, including the active challenge, is restored from `localStorage`
+- the buffer, its language and stdin are saved while you type (debounced, and flushed when the tab
+  closes), so the last session — including the active challenge — is really there on the next visit
 - a run-time limit: an infinite loop is stopped by terminating the worker
 
 ## Limits worth knowing
@@ -82,6 +86,8 @@ These come from running a real compiler in a sandbox, not from a missing feature
   `--export=__heap_base --export=__data_end --export=__stack_pointer`, so its module is a few bytes
   larger than the one Run uses. The chart plots at most 240 points: a program that prints continuously
   has its series halved from inside the worker, so the peak stays exact while the middle thins out.
+- **Sketches live in one browser.** `my code` writes to `localStorage`, capped at forty entries; the
+  JSON export is the way to move them, and importing merges by name rather than duplicating.
 - A program is stopped by killing the worker, so output after the kill point is lost.
 
 ## Development
@@ -96,6 +102,11 @@ npm run dev      # http://localhost:5178
 exception stub, which cuts a typical C++ compile from 5–9 s to 1–3 s. It is a build artifact, not
 source, so it is git-ignored and regenerated in CI; without it everything still works, just slower
 for C++ and without `<bits/stdc++.h>`.
+
+One exception: `npm run dev` without `npm run assets` first. The worker falls back to building the
+stub itself when the asset is *missing*, but a dev server answers an unknown path with `index.html`,
+so C++ links against HTML and fails with `unknown file type: eh.o`. Run the assets step, or test C++
+with `npm run preview` after a build.
 
 ```sh
 npm run build    # typecheck + production bundle in dist/

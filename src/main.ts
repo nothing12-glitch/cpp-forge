@@ -33,6 +33,7 @@ import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages
 import { diffOutput, firstDifference, markSolved, outputMatches, solvedIds, TASKS, type DiffRow, type Task } from './tasks';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
 import { initLenses, closeLens } from './lenses';
+import { closeLibrary, initLibrary, isLibraryOpen, openLibrary, type Draft } from './library';
 import { initPipeline, closePipeline } from './pipeline';
 import './style.css';
 
@@ -231,6 +232,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl+M', 'memory lens'],
   ['Ctrl+O', 'the -O0…-O3 ladder'],
   ['Ctrl+J', 'challenges'],
+  ['Ctrl+K', 'saved sketches'],
   ['Ctrl+L', 'clear the output'],
 ];
 
@@ -253,10 +255,11 @@ function closeSheets() {
   closeSheet(langGate);
   closeSheet(shortcutsSheet);
   closeSheet(taskSheet);
+  closeLibrary();
 }
 
 function anySheetOpen() {
-  return !langGate.hidden || !shortcutsSheet.hidden || !taskSheet.hidden;
+  return !langGate.hidden || !shortcutsSheet.hidden || !taskSheet.hidden || isLibraryOpen();
 }
 
 /** The chip in the header always says which compiler the current buffer would get. */
@@ -855,6 +858,18 @@ function loadExample(example: Example) {
   persist();
 }
 
+/** Opening a sketch restores buffer, language and stdin — nothing runs by itself. */
+function openDraft(draft: Draft) {
+  activeTask = null;
+  taskFlag.hidden = true;
+  applyState(draft);
+  clearConsole();
+  writeLine('system', 'Sketch loaded — press Run.\n');
+  updateDocStats();
+  persist();
+  if (narrow.matches) setView('editor');
+}
+
 function syncSoundButton() {
   soundButton.setAttribute('aria-pressed', String(soundEnabled()));
   soundButton.textContent = soundEnabled() ? 'sound on' : 'sound off';
@@ -891,6 +906,16 @@ initLenses(
   },
 );
 inspectButton.addEventListener('click', closeLens);
+initLibrary(
+  () => ({
+    language: currentLanguage(),
+    standard: standardSelect.value,
+    code: editorView.state.doc.toString(),
+    stdin: stdinBox.value,
+  }),
+  openDraft,
+  toast,
+);
 languageSelect.addEventListener('change', () => {
   setLanguage(currentLanguage());
   editorView.focus();
@@ -966,6 +991,10 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     if (taskSheet.hidden) showTasks();
     else closeSheet(taskSheet);
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    if (isLibraryOpen()) closeLibrary();
+    else openLibrary();
   } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') {
     event.preventDefault();
     clearConsole();
