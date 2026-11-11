@@ -1,10 +1,10 @@
 /*
- * Which colours the page wears is about comfort rather than about the code, so the choice is kept on the
- * device. Every panel mixes its palette from the same accent variables, which makes a theme one attribute
- * on the root element instead of a second stylesheet that has to be kept in step by hand.
+ * Two switches over the same palette: which colors the page wears, and whether the page is allowed to
+ * explain itself. Both are remembered per device, because both are about comfort rather than the code.
  */
 
 const THEME_KEY = 'cpp-forge.theme';
+const FOCUS_KEY = 'cpp-forge.focus';
 
 export const THEMES = ['mint', 'amber', 'ice'] as const;
 export type Theme = (typeof THEMES)[number];
@@ -16,9 +16,21 @@ export const currentTheme = (): Theme => {
   return THEMES.includes(stored as Theme) ? (stored as Theme) : 'mint';
 };
 
+export const isFocus = (): boolean => localStorage.getItem(FOCUS_KEY) === 'on';
+
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem(THEME_KEY, theme);
+}
+
+/**
+ * Focus mode hides the teaching layer — hints, the diff panel, the lenses, share and the footnote —
+ * and leaves the buffer with its output. Nothing is removed from the run itself, so a result a moment
+ * later can still be explained once the mode is off.
+ */
+export function applyFocus(on: boolean): void {
+  document.body.classList.toggle('is-focus', on);
+  localStorage.setItem(FOCUS_KEY, on ? 'on' : 'off');
 }
 
 export function cycleTheme(skinButton: HTMLButtonElement): Theme {
@@ -29,7 +41,21 @@ export function cycleTheme(skinButton: HTMLButtonElement): Theme {
   return next;
 }
 
-export function initTheme(skinButton: HTMLButtonElement): void {
+export function toggleFocus(focusButton: HTMLButtonElement): boolean {
+  const next = !isFocus();
+  applyFocus(next);
+  syncFocusButton(focusButton, next);
+  return next;
+}
+
+export function syncFocusButton(focusButton: HTMLButtonElement, on: boolean): void {
+  focusButton.setAttribute('aria-pressed', String(on));
+  focusButton.textContent = on ? 'explain off' : 'explain on';
+}
+
+export function initDisplay(skinButton: HTMLButtonElement, focusButton: HTMLButtonElement): void {
   applyTheme(currentTheme());
   skinButton.textContent = NAMES[currentTheme()];
+  syncFocusButton(focusButton, isFocus());
+  applyFocus(isFocus());
 }

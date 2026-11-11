@@ -29,6 +29,8 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   choice is remembered on the device. The whole palette is derived from one accent, so the other two are
   the same site in different light rather than a second stylesheet, and every pair clears the contrast
   bar for text on its own background
+- **focus mode**: `explain off` (`Ctrl+B`) hides every explanatory panel at once — the hints, the task
+  diff, the three lenses, the counters, the footnotes — and leaves only the code and its output
 - stdin panel, per-stream coloured output, compile/run timings, exit code and a live
   lines/chars/bytes counter for the buffer
 - seventeen built-in examples, filtered to the language on screen, including one that deliberately

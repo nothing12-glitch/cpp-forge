@@ -29,7 +29,7 @@ import { tags as t } from '@lezer/highlight';
 
 import { EXAMPLES, type Example, type Language } from './examples';
 import { explainErrors } from './explain';
-import { cycleTheme, initTheme } from './display';
+import { cycleTheme, initDisplay, toggleFocus } from './display';
 import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages';
 import { diffOutput, firstDifference, markSolved, outputMatches, solvedIds, TASKS, type DiffRow, type Task } from './tasks';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
@@ -127,6 +127,7 @@ const taskList = $<HTMLElement>('task-list');
 const taskFlag = $<HTMLElement>('task-flag');
 const taskDiffEl = $<HTMLElement>('task-diff');
 const skinButton = $<HTMLButtonElement>('skin');
+const focusButton = $<HTMLButtonElement>('focus');
 const narrow = window.matchMedia('(max-width:760px)');
 
 let toastTimer: number | undefined;
@@ -235,6 +236,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl+O', 'the -O0…-O3 ladder'],
   ['Ctrl+J', 'challenges'],
   ['Ctrl+K', 'saved sketches'],
+  ['Ctrl+B', 'explain on or off'],
   ['Ctrl+L', 'clear the output'],
 ];
 
@@ -879,7 +881,7 @@ function syncSoundButton() {
 
 runButton.addEventListener('click', run);
 stopButton.addEventListener('click', stop);
-initTheme(skinButton);
+initDisplay(skinButton, focusButton);
 syncSoundButton();
 soundButton.addEventListener('click', () => {
   setSoundEnabled(!soundEnabled());
@@ -964,6 +966,9 @@ fontPlus.addEventListener('click', () => {
 skinButton.addEventListener('click', () => {
   toast(`colors — ${cycleTheme(skinButton)}`, 1400);
 });
+focusButton.addEventListener('click', () => {
+  toast(toggleFocus(focusButton) ? 'focus: only the code and its output' : 'back to explaining', 1600);
+});
 viewTabs.addEventListener('click', (event) => {
   const tab = (event.target as HTMLElement).closest<HTMLElement>('.view-tab');
   if (tab?.dataset.view) setView(tab.dataset.view as 'editor' | 'output');
@@ -1001,6 +1006,9 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault();
     if (isLibraryOpen()) closeLibrary();
     else openLibrary();
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+    event.preventDefault();
+    toast(toggleFocus(focusButton) ? 'focus: only the code and its output' : 'back to explaining', 1600);
   } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') {
     event.preventDefault();
     clearConsole();
