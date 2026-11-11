@@ -24,7 +24,8 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   while you type the editor re-reads the buffer and switches on its own when the code clearly belongs
   to another language (turn that off in the same sheet)
 - CodeMirror 6 editor: syntax highlighting, folding, bracket matching, autocomplete, undo history,
-  plus an `A−`/`A+` text size that is remembered too
+  plus an `A−`/`A+` text size that is remembered too. Comments are drawn apart from the code — dimmer,
+  italic, on a faint band — so a note you left for yourself does not read like a statement
 - **three colour schemes**: the `colors` button in the view group cycles mint → amber → ice and the
   choice is remembered on the device. The whole palette is derived from one accent, so the other two are
   the same site in different light rather than a second stylesheet, and every pair clears the contrast

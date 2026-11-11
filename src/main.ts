@@ -76,7 +76,7 @@ const forgeHighlight = HighlightStyle.define([
   { tag: [t.function(t.variableName), t.macroName], color: 'var(--hot)' },
   { tag: [t.string, t.special(t.string)], color: 'var(--ok)' },
   { tag: [t.number, t.bool, t.null], color: 'var(--err)' },
-  { tag: t.comment, color: '#5b7268', fontStyle: 'italic' },
+  { tag: t.comment, class: 'tok-comment' },
   { tag: [t.operator, t.punctuation, t.separator], color: 'var(--muted)' },
   { tag: t.propertyName, color: 'var(--mint)' },
 ]);

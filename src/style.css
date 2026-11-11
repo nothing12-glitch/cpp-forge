@@ -1423,3 +1423,11 @@ body::before {
 .is-focus #share {
   display: none;
 }
+
+/* a comment should read as a note left for the person who comes back in half a year */
+.editor .tok-comment {
+  color: var(--muted-dim);
+  font-style: italic;
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  border-radius: 4px;
+}
