@@ -36,6 +36,8 @@ type MemoryMessage = {
   peak?: number;
   after?: number;
   grew?: number;
+  samples?: { t: number; bytes: number }[];
+  writeCount?: number;
   heapBase?: number | null;
   dataEnd?: number | null;
   stackPointer?: number | null;
@@ -48,6 +50,9 @@ type LensMessage = LevelMessage | MemoryMessage | { type: 'done' };
 
 const LEVELS = ['-O0', '-O1', '-O2', '-O3'];
 const LENS_LIMIT_MS = 20_000;
+const CHART_W = 720;
+const CHART_H = 150;
+const SVG_NS = 'http://www.w3.org/2000/svg';
 const SETTLED_NOTES: Record<'compare' | 'memory', string> = {
   compare: 'every level is a separate full link of this file in this tab — the time is Clang working, not your program running',
   memory: 'the program really ran here to make these numbers; nothing left the page',
@@ -204,12 +209,50 @@ function onLevel(message: LevelMessage) {
   });
 }
 
+function svgNode<K extends SVGElement>(name: string, attrs: Record<string, string>): K {
+  const el = document.createElementNS(SVG_NS, name) as K;
+  for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
+  return el;
+}
+
+/** The heap as it was measured: one point per output write, the first and last write always kept. */
+function memoryChart(samples: Array<{ t: number; bytes: number }>): SVGSVGElement | null {
+  if (samples.length < 2) return null;
+  const lastT = Math.max(1, samples[samples.length - 1].t);
+  const high = Math.max(...samples.map((point) => point.bytes));
+  const low = Math.min(...samples.map((point) => point.bytes));
+  const x = (t: number) => (t / lastT) * CHART_W;
+  const y = (bytes: number) => CHART_H - 16 - ((bytes - low) / Math.max(1, high - low)) * (CHART_H - 34);
+  const line = samples.map((point) => `${x(point.t).toFixed(1)},${y(point.bytes).toFixed(1)}`).join(' ');
+
+  const chart = svgNode<SVGSVGElement>('svg', {
+    class: 'mem-chart',
+    viewBox: `0 0 ${CHART_W} ${CHART_H}`,
+    role: 'img',
+    'aria-label': `linear memory grew from ${formatBytes(low)} to ${formatBytes(high)} over ${lastT} ms`,
+  });
+  chart.appendChild(svgNode<SVGPolygonElement>('polygon', { class: 'mem-area', points: `0,${CHART_H} ${line} ${CHART_W},${CHART_H}` }));
+  chart.appendChild(svgNode<SVGPolylineElement>('polyline', { class: 'mem-line', points: line }));
+  for (const [text, px, py, anchor] of [
+    [`peak ${formatBytes(high)}`, 8, 16, 'start'],
+    [`start ${formatBytes(low)}`, 8, CHART_H - 6, 'start'],
+    [`${lastT} ms`, CHART_W - 8, CHART_H - 6, 'end'],
+  ] as Array<[string, number, number, string]>) {
+    const label = svgNode<SVGTextElement>('text', { x: String(px), y: String(py), class: 'mem-tick', 'text-anchor': anchor });
+    label.textContent = text;
+    chart.appendChild(label);
+  }
+  return chart;
+}
+
 function onMemory(message: MemoryMessage) {
   body.textContent = '';
   if (message.status === 'failed') {
     problem = message.note?.split('\n').find((line) => line.includes('error:')) || 'the program did not compile';
     return;
   }
+  const chart = memoryChart(message.samples ?? []);
+  if (chart) body.appendChild(chart);
   const rows: [string, string, number][] = [
     ['module', formatBytes(message.moduleBytes ?? 0), message.moduleBytes ?? 0],
     ['declared memory', `${message.pages ?? 0} pages · ${formatBytes(message.declared ?? 0)}`, message.declared ?? 0],
@@ -228,10 +271,12 @@ function onMemory(message: MemoryMessage) {
   const facts = document.createElement('p');
   facts.className = 'mem-facts';
   const exit = message.exitCode == null ? `crashed: ${message.crashed || 'unknown'}` : `exit ${message.exitCode}`;
+  const writes = message.writeCount ?? 0;
   facts.textContent =
     `${exit} · stack pointer starts at ${message.stackPointer ?? '—'} · ` +
+    `memory read at ${writes} output write${writes === 1 ? '' : 's'} · ` +
     (message.shared ? 'memory is imported by the module' : 'memory is exported by the module') +
-    ' · peak is sampled at every write to stdout/stderr, so a program that is silent while it allocates shows a floor, not a ceiling';
+    ' · a program that allocates while staying silent shows a floor, not a ceiling';
   body.appendChild(facts);
   const list = document.createElement('ul');
   list.className = 'mem-sections';

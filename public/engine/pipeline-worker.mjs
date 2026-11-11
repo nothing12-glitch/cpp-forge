@@ -19,6 +19,8 @@ const CLANG_BASE = 'https://cdn.jsdelivr.net/npm/@yowasp/clang@21.1.4-3/';
 const ASSETS = new URL('../assets/', import.meta.url);
 const PCH = 'cxx20-o2';
 const ARTIFACT_LIMIT = 60000;
+const MEMORY_POINTS = 240;
+const MEMORY_BUFFER = 4800;
 // Diagnostics that mean the header (or a version mismatch) is at fault, not the user's code.
 const PCH_TROUBLE = /precompiled|cxx20-o2|redefinition|conflicting|ambiguous|different kind of symbol/i;
 
@@ -191,6 +193,18 @@ async function runCompare(data) {
 }
 
 /**
+ * Evenly subsample a measured series down to `limit` points. The first and last point always survive,
+ * so the chart keeps the true start and end of the run.
+ */
+function thin(points, limit) {
+  if (points.length <= limit) return points;
+  const step = (points.length - 1) / (limit - 1);
+  const kept = [];
+  for (let index = 0; index < limit; index += 1) kept.push(points[Math.round(index * step)]);
+  return kept;
+}
+
+/**
  * The linear memory as the machine sees it: what the module declares, where the heap starts, and how
  * far it grew while the program ran. Growth is sampled at every output write, so `peak` is the high
  * water mark between prints — a real measurement, not an estimate, but only as dense as the output.
@@ -215,12 +229,23 @@ async function runMemscan(data) {
   const needsImportedMemory = WebAssembly.Module.imports(compiled).some((item) => item.kind === 'memory');
   let memory = null;
   let peak = 0;
+  let writes = 0;
+  let series = [];
+  const startedAt = performance.now();
+  const remember = () => {
+    if (!memory) return;
+    const bytes = memory.buffer.byteLength;
+    writes += 1;
+    peak = Math.max(peak, bytes);
+    series.push({ t: Math.round(performance.now() - startedAt), bytes });
+    // A program that prints continuously must not grow this array without bound; dropping every
+    // second point keeps the shape and peak (measured above) while halving the memory used.
+    if (series.length > MEMORY_BUFFER) series = series.filter((_, index) => index % 2 === 0);
+  };
   const wasi = createWasi({
     args: ['main'],
     stdin: new TextEncoder().encode(String(data.stdin || '')),
-    write: () => {
-      if (memory) peak = Math.max(peak, memory.buffer.byteLength);
-    },
+    write: remember,
   });
   const imports = { ...wasi.imports };
   if (needsImportedMemory) {
@@ -236,6 +261,7 @@ async function runMemscan(data) {
     return value && typeof value.value === 'number' ? value.value : null;
   };
   const before = memory.buffer.byteLength;
+  series.unshift({ t: 0, bytes: before });
   let exitCode = null;
   let crashed = '';
   try {
@@ -244,6 +270,7 @@ async function runMemscan(data) {
     crashed = (error && error.message) || String(error);
   }
   const after = memory.buffer.byteLength;
+  series.push({ t: Math.round(performance.now() - startedAt), bytes: after });
 
   self.postMessage({
     type: 'memory',
@@ -255,6 +282,8 @@ async function runMemscan(data) {
     before,
     peak: Math.max(peak, after),
     after,
+    samples: thin(series, MEMORY_POINTS),
+    writeCount: writes,
     grew: Math.max(0, Math.max(peak, after) - before),
     heapBase: global('__heap_base'),
     dataEnd: global('__data_end'),

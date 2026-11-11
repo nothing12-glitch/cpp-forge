@@ -45,7 +45,8 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   `-O3` over `-O0` as the headline (`Ctrl+O`)
 - **memory** runs the program once more inside the inspection worker and reads its linear memory while
   it runs: what the module declares, where `__heap_base` and the static data end, how far memory grew,
-  the exit code and the section stack of the module it executed (`Ctrl+M`)
+  the exit code and the section stack of the module it executed. Above the numbers the lens draws the
+  measured series itself — heap bytes against the moment of every output write (`Ctrl+M`)
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
 - **phone layout**: one pane at a time with a `code` / `output` bar in the thumb zone, Run and Stop moved
   into it, 44 px targets, 16 px inputs so iOS does not zoom, and safe-area padding for the notch
@@ -79,7 +80,8 @@ These come from running a real compiler in a sandbox, not from a missing feature
   memory at every write to stdout/stderr. A program that allocates while staying silent therefore shows
   a floor, not a ceiling; a program that never returns is given up on after 20 s. The lens link adds
   `--export=__heap_base --export=__data_end --export=__stack_pointer`, so its module is a few bytes
-  larger than the one Run uses.
+  larger than the one Run uses. The chart plots at most 240 points: a program that prints continuously
+  has its series halved from inside the worker, so the peak stays exact while the middle thins out.
 - A program is stopped by killing the worker, so output after the kill point is lost.
 
 ## Development
