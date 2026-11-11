@@ -965,6 +965,90 @@ body::before {
   color: var(--mint);
 }
 
+.task-diff {
+  margin: 0 12px 12px;
+  padding: 12px 14px;
+  background: var(--sunk);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--hot);
+  border-radius: var(--radius-sm);
+}
+
+.task-diff-head {
+  margin: 0 0 10px;
+  color: var(--hot);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.task-diff-grid {
+  display: grid;
+  grid-template-columns: 3ch minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.task-diff-grid > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.task-diff-grid .d-head {
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.task-diff-grid .d-no {
+  color: var(--muted);
+}
+
+.task-diff-grid .d-want,
+.task-diff-grid .d-got {
+  padding: 1px 5px;
+  border-radius: 6px;
+}
+
+.task-diff-grid .is-same {
+  color: var(--muted);
+}
+
+.task-diff-grid .d-want.is-differ,
+.task-diff-grid .d-want.is-missing {
+  color: var(--mint);
+  background: rgba(61, 243, 127, 0.09);
+}
+
+.task-diff-grid .d-got.is-differ,
+.task-diff-grid .d-got.is-extra {
+  color: var(--err);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.task-diff-grid .d-want.is-extra,
+.task-diff-grid .d-got.is-missing {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.task-diff-more {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.task-diff-hint {
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line-soft);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .task-list {
   display: grid;
   gap: 10px;

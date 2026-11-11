@@ -30,7 +30,7 @@ import { tags as t } from '@lezer/highlight';
 import { EXAMPLES, type Example, type Language } from './examples';
 import { explainErrors } from './explain';
 import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages';
-import { markSolved, outputMatches, solvedIds, TASKS, type Task } from './tasks';
+import { diffOutput, firstDifference, markSolved, outputMatches, solvedIds, TASKS, type DiffRow, type Task } from './tasks';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
 import { initLenses, closeLens } from './lenses';
 import { initPipeline, closePipeline } from './pipeline';
@@ -60,6 +60,7 @@ const FONT_KEY = 'cpp-forge.font';
 const FONT_STEPS = [11.5, 12.5, 13.5, 15, 16.5, 18];
 const DETECT_DELAY_MS = 800;
 const SAVE_DELAY_MS = 400;
+const DIFF_ROW_LIMIT = 24;
 
 const forgeTheme = EditorView.theme({
   '&': { height: '100%', backgroundColor: 'transparent' },
@@ -122,6 +123,7 @@ const tasksButton = $<HTMLButtonElement>('tasks');
 const taskSheet = $<HTMLElement>('task-sheet');
 const taskList = $<HTMLElement>('task-list');
 const taskFlag = $<HTMLElement>('task-flag');
+const taskDiffEl = $<HTMLElement>('task-diff');
 const narrow = window.matchMedia('(max-width:760px)');
 
 let toastTimer: number | undefined;
@@ -210,6 +212,7 @@ function clearConsole() {
   hintsEl.hidden = true;
   hintsEl.textContent = '';
   metricsEl.textContent = '';
+  hideTaskDiff();
 }
 
 function setStatus(state: string, label: string) {
@@ -568,13 +571,68 @@ function showHints(text: string) {
 function checkTask() {
   if (!activeTask) return;
   if (outputMatches(activeTask, lastStdout)) {
+    hideTaskDiff();
     const firstTime = markSolved(activeTask.id);
     renderTaskList();
     toast(firstTime ? `solved — ${activeTask.title}` : `still correct — ${activeTask.title}`);
     flash(taskFlag, 'is-flash');
   } else {
-    toast('output does not match yet — the hint is in the challenge list');
+    showTaskDiff(activeTask, lastStdout);
+    toast('output does not match — the panel below shows the first line apart');
   }
+}
+
+function hideTaskDiff() {
+  taskDiffEl.hidden = true;
+  taskDiffEl.textContent = '';
+}
+
+function diffCell(role: 'no' | 'want' | 'got', row: DiffRow | null, text: string): HTMLElement {
+  const cell = document.createElement('span');
+  cell.className = row ? `d-${role} is-${row.state}` : `d-${role} d-head`;
+  cell.textContent = text;
+  return cell;
+}
+
+/** A run that exits 0 can still be wrong; this says which line the checker disagreed on. */
+function showTaskDiff(task: Task, actual: string) {
+  const rows = diffOutput(task.expect, actual);
+  const first = firstDifference(rows);
+  taskDiffEl.textContent = '';
+
+  const head = document.createElement('p');
+  head.className = 'task-diff-head';
+  head.textContent = first
+    ? `first difference on line ${first.line}: expected “${first.expected || 'nothing'}”, printed “${first.actual || 'nothing'}”`
+    : 'the lines you printed match';
+  taskDiffEl.appendChild(head);
+
+  const grid = document.createElement('div');
+  grid.className = 'task-diff-grid';
+  grid.append(diffCell('no', null, '#'), diffCell('want', null, 'expected'), diffCell('got', null, 'you printed'));
+  for (const row of rows.slice(0, DIFF_ROW_LIMIT)) {
+    grid.append(
+      diffCell('no', row, String(row.line)),
+      diffCell('want', row, row.expected || '·'),
+      diffCell('got', row, row.actual || '·'),
+    );
+  }
+  taskDiffEl.appendChild(grid);
+
+  if (rows.length > DIFF_ROW_LIMIT) {
+    const more = document.createElement('p');
+    more.className = 'task-diff-more';
+    more.textContent = `+ ${rows.length - DIFF_ROW_LIMIT} further lines`;
+    taskDiffEl.appendChild(more);
+  }
+
+  const hint = document.createElement('p');
+  hint.className = 'task-diff-hint';
+  hint.textContent = `hint — ${task.hint}`;
+  taskDiffEl.appendChild(hint);
+
+  taskDiffEl.hidden = false;
+  flash(taskDiffEl, 'is-flash');
 }
 
 /**

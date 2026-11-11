@@ -30,7 +30,9 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
 - seventeen built-in examples, filtered to the language on screen, including one that deliberately
   fails to compile
 - **challenges**: ten tasks with starter code, input and an expected output; when the program exits 0
-  the console is compared line by line and the task is ticked on the device (`Ctrl+J`)
+  the console is compared line by line and the task is ticked on the device (`Ctrl+J`). When the exit
+  code is clean but the answer is wrong, a **diff** panel puts expected and printed side by side,
+  marks the first line apart and repeats the task's hint
 - **error hints**: when clang stops, the diagnostics are translated into plain words next to the panel —
   matched per message, with a fallback that explains why later errors usually cascade
 - **how it compiles** opens the real pipeline: the same source goes through four extra compiler passes

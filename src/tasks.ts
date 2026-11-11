@@ -135,13 +135,45 @@ export function markSolved(id: string): boolean {
   return true;
 }
 
+const cleanLines = (text: string): string[] =>
+  text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+export interface DiffRow {
+  line: number;
+  expected: string;
+  actual: string;
+  state: 'same' | 'differ' | 'missing' | 'extra';
+}
+
+/**
+ * Line-by-line view of a challenge attempt, normalised exactly the way the checker normalises, so the
+ * panel never points at a difference the comparison itself ignores.
+ */
+export function diffOutput(expected: string, actual: string): DiffRow[] {
+  const want = cleanLines(expected);
+  const got = cleanLines(actual);
+  const rows: DiffRow[] = [];
+  for (let index = 0; index < Math.max(want.length, got.length); index += 1) {
+    const left = want[index];
+    const right = got[index];
+    rows.push({
+      line: index + 1,
+      expected: left ?? '',
+      actual: right ?? '',
+      state: left === right ? 'same' : left === undefined ? 'extra' : right === undefined ? 'missing' : 'differ',
+    });
+  }
+  return rows;
+}
+
+export const firstDifference = (rows: DiffRow[]): DiffRow | undefined => rows.find((row) => row.state !== 'same');
+
 /** Line-by-line, whitespace-tolerant comparison — trailing spaces should never fail a task. */
 export function outputMatches(task: Task, stdout: string): boolean {
-  const clean = (text: string) =>
-    text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .join('\n');
-  return clean(stdout) === clean(task.expect);
+  const want = cleanLines(task.expect);
+  const got = cleanLines(stdout);
+  return want.length === got.length && want.every((line, index) => line === got[index]);
 }
