@@ -119,3 +119,15 @@ export function explainErrors(text: string): Diagnosis {
   }
   return { groups: groups.slice(0, HINT_LIMIT), hidden: Math.max(0, groups.length - HINT_LIMIT) };
 }
+
+/**
+ * The place a diagnostic points at, when it names one at all. The worker always compiles the buffer as
+ * `main.c` or `main.cpp`, so the address in front of the message is the only coordinate the page gets.
+ */
+export function errorPosition(line: string): { row: number; column: number } | null {
+  const found = /(?:^|\s)main\.\w+:(\d+):(\d+):/.exec(line);
+  if (!found) return null;
+  const row = Number(found[1]);
+  const column = Number(found[2]);
+  return row > 0 && column > 0 ? { row, column } : null;
+}

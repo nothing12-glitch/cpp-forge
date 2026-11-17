@@ -28,7 +28,7 @@ import {
 import { tags as t } from '@lezer/highlight';
 
 import { EXAMPLES, type Example, type Language } from './examples';
-import { explainErrors } from './explain';
+import { errorPosition, explainErrors } from './explain';
 import { cycleTheme, initDisplay, toggleFocus } from './display';
 import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages';
 import { diffOutput, firstDifference, markSolved, outputMatches, solvedIds, TASKS, type DiffRow, type Task } from './tasks';
@@ -568,9 +568,23 @@ function showHints(text: string) {
   for (const group of groups) {
     const card = document.createElement('div');
     card.className = 'hint';
-    const line = document.createElement('b');
-    line.textContent = group.count > 1 ? `${group.line}  ×${group.count}` : group.line;
-    line.title = group.line;
+    const shown = group.count > 1 ? `${group.line}  ×${group.count}` : group.line;
+    let line: HTMLElement;
+    const at = errorPosition(group.line);
+    if (at) {
+      const jump = document.createElement('button');
+      jump.type = 'button';
+      jump.className = 'hint-line';
+      jump.textContent = shown;
+      jump.setAttribute('aria-label', `caret to line ${at.row}, column ${at.column}`);
+      jump.addEventListener('click', () => jumpTo(at));
+      line = jump;
+    } else {
+      const plain = document.createElement('b');
+      plain.textContent = shown;
+      plain.title = group.line;
+      line = plain;
+    }
     card.append(line, document.createTextNode(group.hint));
     hintsEl.appendChild(card);
   }
@@ -581,6 +595,21 @@ function showHints(text: string) {
     hintsEl.appendChild(more);
   }
   hintsEl.hidden = false;
+}
+
+/** clang hands over an address and nothing else; this is the one click that turns it into a caret. */
+function jumpTo({ row, column }: { row: number; column: number }) {
+  const doc = editorView.state.doc;
+  const line = doc.line(Math.min(Math.max(1, row), doc.lines));
+  const at = Math.min(line.from + column - 1, line.to);
+  if (narrow.matches) setView('editor');
+  editorView.dispatch({
+    selection: { anchor: at },
+    effects: EditorView.scrollIntoView(at, { y: 'center' }),
+  });
+  editorView.focus();
+  const here = doc.lineAt(at);
+  toast(`caret on line ${here.number}, column ${at - here.from + 1}`, 1400);
 }
 
 function checkTask() {

@@ -975,7 +975,8 @@ body::before {
   line-height: 1.5;
 }
 
-.hint b {
+.hint b,
+.hint-line {
   display: block;
   margin-bottom: 4px;
   color: var(--err);
@@ -985,6 +986,20 @@ body::before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* a diagnostic that names a place is worth clicking, so it is a button and not a caption */
+.hint-line {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hint-line:hover,
+.hint-line:focus-visible {
+  text-decoration: underline dotted;
 }
 
 .hint-more {
