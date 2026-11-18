@@ -233,6 +233,26 @@ body::before {
   overflow: hidden;
 }
 
+/* a file held over the editor: the pane says what will happen before the button goes up */
+.pane.is-drop::after {
+  content: 'drop the file here — it opens in the editor, nothing is uploaded';
+  position: absolute;
+  inset: 8px;
+  z-index: 4;
+  display: grid;
+  place-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--mint) 11%, var(--panel));
+  border: 2px dashed var(--mint);
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--mint);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
+  pointer-events: none;
+}
+
 .toolbar,
 .output-head {
   display: flex;

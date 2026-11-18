@@ -31,7 +31,7 @@
     </header>
 
     <main class="workspace" id="workspace" data-view="editor">
-      <section class="pane pane-editor" aria-label="Source code">
+      <section class="pane pane-editor" id="editor-pane" aria-label="Source code">
         <div class="toolbar">
           <select id="language" class="select" aria-label="Language">
             <option value="cpp">C++</option>
@@ -42,6 +42,10 @@
           <select id="examples" class="select" aria-label="Example">
             <option value="">load example…</option>
           </select>
+          <button id="open-file" class="btn btn-ghost" type="button" title="open a .c, .cpp or .cs file from this computer">
+            open file
+          </button>
+          <input id="open-file-input" type="file" hidden />
           <div class="spacer"></div>
           <div class="font-size" role="group" aria-label="Editor view">
             <button id="font-minus" class="btn btn-icon" type="button" aria-label="Smaller text">A−</button>

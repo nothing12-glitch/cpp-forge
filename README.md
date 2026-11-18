@@ -36,6 +36,13 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   lines/chars/bytes counter for the buffer
 - seventeen built-in examples, filtered to the language on screen, including one that deliberately
   fails to compile
+- **your own file from disk**: `open file` in the toolbar, or drag a file onto the code pane — `.c`,
+  `.h`, `.cpp`, `.cc`, `.hpp`, `.cs`, `.txt`. The extension decides the language (an extensionless file
+  falls back to reading the code), the buffer becomes the file as a single undoable step so `Ctrl+Z`
+  brings back what was there, and the console says plainly that nothing was uploaded. A `.json` is
+  refused with a pointer to the sketch importer, a file over 512 KB is refused with its size quoted, and
+  anything that reads as binary is refused rather than pasted in. Dropping a file anywhere else on the
+  page is swallowed, because a browser would otherwise throw the tab away and load the file instead
 - **challenges**: ten tasks with starter code and an expected output, each proved against **one to three
   different inputs** rather than a single example. The input in the box is check one; when it agrees and
   the task has more, the same code is quietly run again against each of them — nothing is painted during

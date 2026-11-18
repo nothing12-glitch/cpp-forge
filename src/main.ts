@@ -45,6 +45,7 @@ import {
   type DiffRow,
   type Task,
 } from './tasks';
+import { initFiles, type Picked } from './files';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
 import { initLenses, closeLens } from './lenses';
 import { closeLibrary, initLibrary, isLibraryOpen, openLibrary, type Draft } from './library';
@@ -1137,6 +1138,23 @@ function openDraft(draft: Draft) {
   if (narrow.matches) setView('editor');
 }
 
+/** A file from this computer: the buffer becomes it, language comes from its extension, nothing runs. */
+function openPicked(picked: Picked) {
+  activeTask = null;
+  taskFlag.hidden = true;
+  setLanguage(picked.language);
+  editorView.dispatch({
+    selection: { anchor: 0 },
+    changes: { from: 0, to: editorView.state.doc.length, insert: picked.code },
+  });
+  clearConsole();
+  writeLine('system', `Opened ${picked.name} from this computer. Nothing was uploaded.\n`);
+  updateDocStats();
+  persist();
+  if (narrow.matches) setView('editor');
+  editorView.focus();
+}
+
 function syncSoundButton() {
   soundButton.setAttribute('aria-pressed', String(soundEnabled()));
   soundButton.textContent = soundEnabled() ? 'sound on' : 'sound off';
@@ -1184,6 +1202,7 @@ initLibrary(
   openDraft,
   toast,
 );
+initFiles(openPicked, toast);
 languageSelect.addEventListener('change', () => {
   setLanguage(currentLanguage());
   editorView.focus();
