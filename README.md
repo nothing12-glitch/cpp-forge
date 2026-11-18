@@ -36,12 +36,17 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   lines/chars/bytes counter for the buffer
 - seventeen built-in examples, filtered to the language on screen, including one that deliberately
   fails to compile
-- **challenges**: ten tasks with starter code, input and an expected output; when the program exits 0
-  the console is compared line by line and the task is ticked on the device (`Ctrl+J`). When the exit
-  code is clean but the answer is wrong, a **diff** panel puts expected and printed side by side and
-  marks the first line apart. The task's own hint is not part of the first miss — the panel counts down
-  the blind tries you have left and opens the hint on the third, so the diff is what you read first, and
-  a solve clears the count
+- **challenges**: ten tasks with starter code and an expected output, each proved against **one to three
+  different inputs** rather than a single example. The input in the box is check one; when it agrees and
+  the task has more, the same code is quietly run again against each of them — nothing is painted during
+  those runs except a `check 2 of 3: agreed` line, and Run stays disabled until the pass is over. A
+  program that only fits the example in the brief now fails, which is the point. When the exit code is
+  clean but an answer is wrong, a **board** under the console lists every input tried, what was wanted
+  and what came back, and a **diff** panel puts expected and printed side by side for the one you pick —
+  any row of the board moves the diff to that check. A crash or a program that outlives its time limit
+  ends the pass at that check and says so on the board instead of pretending the rest agreed. The task's
+  own hint is not part of the first miss — the panel counts down the blind tries you have left and opens
+  the hint on the third, so the diff is what you read first, and a solve clears the count
 - **error hints**: when clang stops, every kind of diagnostic is translated into plain words next to the
   panel rather than only the first. Identical complaints fold into one card that says `×3`, the list
   caps at six kinds and the remainder becomes a line telling you to clear these first, because the rest

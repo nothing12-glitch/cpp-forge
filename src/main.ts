@@ -31,7 +31,20 @@ import { EXAMPLES, type Example, type Language } from './examples';
 import { errorPosition, explainErrors } from './explain';
 import { cycleTheme, initDisplay, toggleFocus } from './display';
 import { isRunnable, LANGUAGES, languageInfo, detectLanguage } from './languages';
-import { diffOutput, firstDifference, markSolved, outputMatches, solvedIds, TASKS, type DiffRow, type Task } from './tasks';
+import {
+  caseMatches,
+  checkWord,
+  diffOutput,
+  firstDifference,
+  markSolved,
+  reasonWord,
+  shortLine,
+  solvedIds,
+  TASKS,
+  type CaseResult,
+  type DiffRow,
+  type Task,
+} from './tasks';
 import { buzz, flash, motionAllowed, play, setSoundEnabled, soundEnabled, spark } from './fx';
 import { initLenses, closeLens } from './lenses';
 import { closeLibrary, initLibrary, isLibraryOpen, openLibrary, type Draft } from './library';
@@ -128,9 +141,16 @@ const taskSheet = $<HTMLElement>('task-sheet');
 const taskList = $<HTMLElement>('task-list');
 const taskFlag = $<HTMLElement>('task-flag');
 const taskDiffEl = $<HTMLElement>('task-diff');
+const caseBoardEl = $<HTMLElement>('case-board');
 const skinButton = $<HTMLButtonElement>('skin');
 const focusButton = $<HTMLButtonElement>('focus');
 const narrow = window.matchMedia('(max-width:760px)');
+
+interface Pass {
+  task: Task;
+  index: number;
+  results: CaseResult[];
+}
 
 let toastTimer: number | undefined;
 let detectTimer: number | undefined;
@@ -138,6 +158,10 @@ let saveTimer: number | undefined;
 let fontIndex = Number(localStorage.getItem(FONT_KEY)) || 2;
 let activeTask: Task | null = null;
 let lastStdout = '';
+let pass: Pass | null = null;
+let capturing = false;
+let capture = '';
+let captureErr = '';
 let restoring = true;
 
 const editorView = new EditorView({
@@ -219,6 +243,7 @@ function clearConsole() {
   hintsEl.textContent = '';
   metricsEl.textContent = '';
   hideTaskDiff();
+  hideCaseBoard();
 }
 
 function setStatus(state: string, label: string) {
@@ -449,7 +474,7 @@ function renderTaskList() {
     const brief = document.createElement('span');
     brief.textContent = task.brief;
     const meta = document.createElement('code');
-    meta.textContent = `${task.language.toUpperCase()}${task.stdin ? ' · with stdin' : ' · no input'}`;
+    meta.textContent = `${task.language.toUpperCase()} · ${checkWord(task.cases.length)}`;
     card.append(title, brief, meta);
     card.addEventListener('click', () => startTask(task));
     taskList.appendChild(card);
@@ -463,15 +488,21 @@ function startTask(task: Task) {
   editorView.dispatch({
     changes: { from: 0, to: editorView.state.doc.length, insert: task.starter },
   });
-  stdinBox.value = task.stdin ?? '';
-  toggleStdin(Boolean(task.stdin));
+  stdinBox.value = task.cases[0].stdin ?? '';
+  toggleStdin(Boolean(task.cases[0].stdin));
   clearConsole();
   taskFlag.hidden = false;
   taskFlag.innerHTML = '';
   const label = document.createElement('b');
   label.textContent = task.title;
   taskFlag.append(label, document.createTextNode(` — ${task.brief}`));
-  writeLine('system', `Challenge “${task.title}”. Expected output is checked when the program exits with 0.\n`);
+  const extra = task.cases.length - 1;
+  writeLine(
+    'system',
+    extra === 0
+      ? `Challenge “${task.title}”. One input, one answer: press Run and the console is checked line by line.\n`
+      : `Challenge “${task.title}”. The first input is in the box; when its answer is right, the same program is run again on ${extra} more ${extra === 1 ? 'input' : 'inputs'}.\n`,
+  );
   if (narrow.matches) setView('editor');
   editorView.focus();
   persist();
@@ -507,18 +538,26 @@ function createWorker(): Worker {
 
 function onWorkerMessage(message: WorkerMessage) {
   switch (message.type) {
-    case 'status':
-      if (message.status === 'loading') setStatus('loading', 'downloading toolchain…');
-      if (message.status === 'busy') setStatus('compiling', 'compiling…');
+    case 'status': {
+      const label = capturing && pass ? `${checkTitle(pass.index, pass.task.cases.length)} · ` : '';
+      if (message.status === 'loading') setStatus('loading', `${label}downloading toolchain…`);
+      if (message.status === 'busy') setStatus('compiling', `${label}compiling…`);
       if (message.status === 'ready') {
         programStarted = true;
         runStartedAt = performance.now();
-        setStatus('running', 'running');
-        armRunLimit();
+        setStatus('running', `${label}running`);
+        if (!capturing) armRunLimit();
       }
       break;
+    }
     case 'output':
-      writeLine(message.stream, message.text);
+      // A quiet check is measured, not shown: nothing from it reaches the console.
+      if (capturing) {
+        if (message.stream === 'stdout') capture += message.text;
+        if (message.stream === 'stderr') captureErr += message.text;
+      } else {
+        writeLine(message.stream, message.text);
+      }
       break;
     case 'done':
       reportExit(message.exitCode);
@@ -529,6 +568,10 @@ function onWorkerMessage(message: WorkerMessage) {
 function armRunLimit() {
   clearTimeout(runDeadline ?? undefined);
   runDeadline = window.setTimeout(() => {
+    if (capturing && pass) {
+      timeoutPass(pass);
+      return;
+    }
     writeLine('system', `Stopped after ${RUN_LIMIT_MS / 1000}s — the program is still running.\n`);
     flash(outputPane, 'is-shake', 600);
     play('err');
@@ -537,6 +580,11 @@ function armRunLimit() {
 }
 
 function reportExit(exitCode: number) {
+  // A quiet check ends here rather than in the ordinary feedback below.
+  if (capturing && pass) {
+    recordCase(pass, exitCode);
+    return;
+  }
   const now = performance.now();
   // A failed compile never reaches 'ready', so all of the elapsed time belongs to the compiler.
   metricsEl.textContent = programStarted
@@ -544,10 +592,11 @@ function reportExit(exitCode: number) {
     : `compile ${formatMs(now - compileStartedAt)} · exit ${exitCode}`;
   flash(metricsEl, 'is-flash');
   if (exitCode === 0) {
+    // A task owns the rest of the feedback: the first check may only be the beginning of the pass.
+    if (checkTask()) return;
     flash(outputPane, 'is-bloom', 900);
     play('ok');
     buzz(35);
-    checkTask();
   } else {
     flash(outputPane, 'is-shake', 600);
     play('err');
@@ -612,19 +661,157 @@ function jumpTo({ row, column }: { row: number; column: number }) {
   toast(`caret on line ${here.number}, column ${at - here.from + 1}`, 1400);
 }
 
-function checkTask() {
-  if (!activeTask) return;
-  if (outputMatches(activeTask, lastStdout)) {
-    hideTaskDiff();
-    forgetFailures(activeTask.id);
-    const firstTime = markSolved(activeTask.id);
-    renderTaskList();
-    toast(firstTime ? `solved — ${activeTask.title}` : `still correct — ${activeTask.title}`);
-    flash(taskFlag, 'is-flash');
-  } else {
-    showTaskDiff(activeTask, lastStdout, noteFailure(activeTask.id));
-    toast('output does not match — the panel below shows the first line apart');
+const checkTitle = (index: number, total: number): string => `check ${index + 1} of ${total}`;
+
+/**
+ * The run the visitor asked for ended cleanly, so the input in the box has just been tried: that is the
+ * first check. When it agrees and the task has more inputs, the rest run one after another without
+ * painting anything, because an answer that only fits the example in the brief is not an answer.
+ */
+function checkTask(): boolean {
+  if (!activeTask) return false;
+  const task = activeTask;
+  const first: CaseResult = {
+    index: 0,
+    stdin: stdinBox.value,
+    expect: task.cases[0].expect,
+    got: lastStdout,
+    ok: caseMatches(task.cases[0], lastStdout),
+    why: 'wrong',
+  };
+  if (!first.ok || task.cases.length === 1) {
+    finishChecks(task, [first]);
+    return true;
   }
+  pass = { task, index: 1, results: [first] };
+  verifyCase(pass, 1);
+  return true;
+}
+
+/** One more check of the same task: the same buffer, a different input, nothing shown but the status. */
+function verifyCase(p: Pass, index: number): void {
+  const item = p.task.cases[index];
+  capturing = true;
+  capture = '';
+  captureErr = '';
+  armRunLimit();
+  setStatus('loading', `${checkTitle(index, p.task.cases.length)}…`);
+  worker ??= createWorker();
+  const message: RunMessage = {
+    type: 'run',
+    code: editorView.state.doc.toString(),
+    stdin: item.stdin ?? '',
+    language: p.task.language,
+  };
+  if (message.language === 'c') message.standard = standardSelect.value;
+  worker.postMessage(message);
+}
+
+/** A quiet run ended; record what it printed, then go on to the next input or close the pass. */
+function recordCase(p: Pass, exitCode: number): void {
+  const item = p.task.cases[p.index];
+  capturing = false;
+  const crashed = exitCode !== 0;
+  const ok = !crashed && caseMatches(item, capture);
+  const why: CaseResult['why'] = crashed ? 'exit' : 'wrong';
+  p.results.push({ index: p.index, stdin: item.stdin ?? '', expect: item.expect, got: capture, ok, why });
+  writeLine('system', `${checkTitle(p.index, p.task.cases.length)}: ${ok ? 'agreed' : `no — ${reasonWord(why)}`}\n`);
+  if (crashed) {
+    writeLine('stderr', captureErr);
+    finishChecks(p.task, p.results);
+    return;
+  }
+  p.index += 1;
+  if (p.index < p.task.cases.length) verifyCase(p, p.index);
+  else finishChecks(p.task, p.results);
+}
+
+/** The program outlived its limit while a pass was running: the worker is gone, so the pass ends here. */
+function timeoutPass(p: Pass): void {
+  capturing = false;
+  clearTimeout(runDeadline ?? undefined);
+  runDeadline = null;
+  worker?.terminate();
+  worker = null;
+  const item = p.task.cases[p.index];
+  p.results.push({ index: p.index, stdin: item.stdin ?? '', expect: item.expect, got: capture, ok: false, why: 'timeout' });
+  writeLine('system', `${checkTitle(p.index, p.task.cases.length)} — still running after ${RUN_LIMIT_MS / 1000}s\n`);
+  finishChecks(p.task, p.results);
+}
+
+/** Every check that got an answer is known; say what they say, once, together. */
+function finishChecks(task: Task, results: CaseResult[]): void {
+  pass = null;
+  capturing = false;
+  const total = task.cases.length;
+  const wrong = results.find((row) => !row.ok);
+  if (!wrong) {
+    endRun('ok', 'done', false);
+    hideTaskDiff();
+    showCaseBoard(task, results, -1, 0);
+    forgetFailures(task.id);
+    const firstTime = markSolved(task.id);
+    renderTaskList();
+    flash(outputPane, 'is-bloom', 900);
+    flash(taskFlag, 'is-flash');
+    play('ok');
+    buzz(35);
+    toast(firstTime ? `solved — ${task.title}, ${checkWord(total)} agreed` : `still correct — ${checkWord(total)} agreed`);
+    return;
+  }
+  const tries = noteFailure(task.id);
+  endRun('fail', `${checkTitle(wrong.index, total)} · ${reasonWord(wrong.why)}`, false);
+  showCaseBoard(task, results, wrong.index, tries);
+  showCaseDiff(task, wrong, tries);
+  flash(outputPane, 'is-shake', 600);
+  play('err');
+  buzz([25, 45, 25]);
+  toast(`${checkTitle(wrong.index, total)} says no — the board under the console lists every input it tried`);
+}
+
+function hideCaseBoard(): void {
+  caseBoardEl.hidden = true;
+  caseBoardEl.textContent = '';
+}
+
+/**
+ * The scoreboard: every input the program was tried against and what came back. One row per check, and
+ * a row is a button, so the line-by-line panel below can be moved to any of them.
+ */
+function showCaseBoard(task: Task, results: CaseResult[], active: number, tries: number): void {
+  caseBoardEl.textContent = '';
+  const passed = results.filter((row) => row.ok).length;
+  const total = task.cases.length;
+  const title = document.createElement('p');
+  title.className = 'case-title';
+  title.textContent =
+    results.length < total
+      ? `${passed} of ${checkWord(total)} agreed — the pass stopped early, ${total - results.length} skipped`
+      : `${passed} of ${checkWord(total)} agreed`;
+  caseBoardEl.appendChild(title);
+  for (const row of results) {
+    const line = document.createElement('button');
+    line.type = 'button';
+    line.className = `case-row ${row.ok ? 'is-pass' : 'is-fail'}`;
+    if (row.index === active) line.setAttribute('aria-current', 'true');
+    const mark = document.createElement('b');
+    mark.textContent = row.ok ? 'yes' : 'no';
+    const input = document.createElement('span');
+    input.className = 'case-in';
+    input.textContent = row.stdin.trim() ? `input “${shortLine(row.stdin)}”` : 'no input';
+    const answer = document.createElement('code');
+    answer.textContent = row.ok ? shortLine(row.expect) : `wanted “${shortLine(row.expect)}”, got “${shortLine(row.got)}”`;
+    if (row.why === 'timeout') answer.textContent = 'the program never stopped';
+    if (row.why === 'exit') answer.textContent = 'the program stopped with an error';
+    line.append(mark, input, answer);
+    line.addEventListener('click', () => {
+      showCaseBoard(task, results, row.index, tries);
+      showCaseDiff(task, row, tries);
+    });
+    caseBoardEl.appendChild(line);
+  }
+  caseBoardEl.hidden = false;
+  flash(caseBoardEl, 'is-flash');
 }
 
 function attempts(): Record<string, number> {
@@ -663,18 +850,25 @@ function diffCell(role: 'no' | 'want' | 'got', row: DiffRow | null, text: string
   return cell;
 }
 
-/** A run that exits 0 can still be wrong; this says which line the checker disagreed on. */
-function showTaskDiff(task: Task, actual: string, tries: number) {
-  const rows = diffOutput(task.expect, actual);
+/** A run that exits 0 can still be wrong; this says which line one specific check disagreed on. */
+function showCaseDiff(task: Task, result: CaseResult, tries: number) {
+  const rows = diffOutput(result.expect, result.got);
   const first = firstDifference(rows);
   taskDiffEl.textContent = '';
 
   const head = document.createElement('p');
   head.className = 'task-diff-head';
-  head.textContent = first
+  head.textContent = result.stdin.trim()
+    ? `${checkTitle(result.index, task.cases.length)} · input “${shortLine(result.stdin)}”`
+    : `${checkTitle(result.index, task.cases.length)} · no input`;
+  taskDiffEl.appendChild(head);
+
+  const which = document.createElement('p');
+  which.className = 'task-diff-which';
+  which.textContent = first
     ? `first difference on line ${first.line}: expected “${first.expected || 'nothing'}”, printed “${first.actual || 'nothing'}”`
     : 'the lines you printed match';
-  taskDiffEl.appendChild(head);
+  taskDiffEl.appendChild(which);
 
   const grid = document.createElement('div');
   grid.className = 'task-diff-grid';
@@ -763,7 +957,10 @@ function run() {
 }
 
 function stop() {
-  writeLine('system', 'Stopped.\n');
+  const wasPassing = Boolean(pass);
+  pass = null;
+  capturing = false;
+  writeLine('system', wasPassing ? 'Stopped — the extra checks are gone with it.\n' : 'Stopped.\n');
   endRun('idle', 'stopped', true);
 }
 
