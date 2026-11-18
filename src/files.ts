@@ -17,7 +17,8 @@ export interface Picked {
 const MAX_BYTES = 512 * 1024;
 
 const CPP_EXTENSIONS = ['.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx', '.inl', '.ipp', '.tpp'];
-const ACCEPT = '.c,.h,.cpp,.cc,.cxx,.hpp,.hh,.hxx,.inl,.ipp,.tpp,.cs,.txt';
+/** The MIME type is in the list too: a phone picker filters by it, not by the bare extensions. */
+const ACCEPT = '.c,.h,.cpp,.cc,.cxx,.hpp,.hh,.hxx,.inl,.ipp,.tpp,.cs,.txt,text/plain';
 
 const extensionOf = (name: string): string => (name.match(/\.[a-z0-9]+$/i)?.[0] ?? '').toLowerCase();
 

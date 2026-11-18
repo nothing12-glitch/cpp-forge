@@ -145,7 +145,8 @@ const taskDiffEl = $<HTMLElement>('task-diff');
 const caseBoardEl = $<HTMLElement>('case-board');
 const skinButton = $<HTMLButtonElement>('skin');
 const focusButton = $<HTMLButtonElement>('focus');
-const narrow = window.matchMedia('(max-width:760px)');
+const narrow = window.matchMedia('(max-width:760px), (max-height:500px)');
+const touchScreen = window.matchMedia('(pointer: coarse)');
 
 interface Pass {
   task: Task;
@@ -173,6 +174,11 @@ const editorView = new EditorView({
 /** Mint ripple plus a soft click for every character the user types. */
 function sparkAtCaret(update: ViewUpdate) {
   if (!motionAllowed()) return;
+  // on a phone the caret hides behind the keyboard, so measuring it each keystroke buys nothing
+  if (touchScreen.matches) {
+    play('type');
+    return;
+  }
   const pos = update.state.selection.main.head;
   const box = update.view.dom.getBoundingClientRect();
   const caret = update.view.coordsAtPos(pos);
@@ -1255,10 +1261,8 @@ viewTabs.addEventListener('click', (event) => {
   const tab = (event.target as HTMLElement).closest<HTMLElement>('.view-tab');
   if (tab?.dataset.view) setView(tab.dataset.view as 'editor' | 'output');
 });
-narrow.addEventListener('change', () => {
-  relocateActions();
-  setView('editor');
-});
+/* turning the phone sideways must not throw you back to the pane you were not reading */
+narrow.addEventListener('change', relocateActions);
 
 window.addEventListener('keydown', (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {

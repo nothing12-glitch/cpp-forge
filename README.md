@@ -76,8 +76,17 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   language and stdin; opening puts all three back. The whole set exports to a JSON file and imports
   again, merged by name, so a sketch can move between devices without ever touching a server (`Ctrl+K`)
 - **share link** puts the whole session in the URL hash, so a snippet is a link, not a screenshot
-- **phone layout**: one pane at a time with a `code` / `output` bar in the thumb zone, Run and Stop moved
-  into it, 44 px targets, 16 px inputs so iOS does not zoom, and safe-area padding for the notch
+- **phone, tablet and landscape layout**: one pane at a time with a `code` / `output` bar in the thumb
+  zone, Run and Stop moved into it, 44 px targets (56 px for a challenge row), 16 px fields so iOS does
+  not zoom the page when you tap them, and safe-area padding on all four edges for the notch. The same
+  one-pane arrangement takes over on any short window, so a phone turned on its side still has room to
+  read code: the toolbar tightens and the editor line height drops. Sheets are measured against the
+  visible viewport rather than the theoretical one, so the last button of a long list never hides behind
+  the browser's own toolbar, and an on-screen keyboard resizes the layout instead of covering the bar.
+  Scrolling the output can't tug the page into pull-to-refresh, a double tap never zooms, a hover style
+  never sticks under a finger, error hints wrap instead of ending in `…`, and rotating keeps you on the
+  pane you were reading. On a touch screen the caret ripple is skipped — it would be measured on every
+  keystroke and drawn behind the keyboard, so only the click is kept
 - feedback layer: sparks at the caret while typing, a heat pulse on Run while Clang works, a mint
   bloom on a clean exit, a shake on failure, plus optional sound and haptics — every effect is
   dropped when the system asks for reduced motion
