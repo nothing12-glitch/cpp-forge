@@ -53,7 +53,12 @@ editor → worker → clang++ (wasm) → main.wasm → WASI host → stdout/stde
   any row of the board moves the diff to that check. A crash or a program that outlives its time limit
   ends the pass at that check and says so on the board instead of pretending the rest agreed. The task's
   own hint is not part of the first miss — the panel counts down the blind tries you have left and opens
-  the hint on the third, so the diff is what you read first, and a solve clears the count
+  the hint on the third, so the diff is what you read first, and a solve clears the count. A board where
+  everything agreed closes with **what to try next**: the ladder is the order of the sheet, so the row
+  names the first task after this one still open (and the ones that were skipped once you reach the end),
+  and one click loads its starter and its first input; when there is nothing left, the line says all ten
+  are solved and is deliberately not a button. Tapping a row of the board to move the diff keeps the
+  suggestion, because it is part of the board rather than of the moment
 - **error hints**: when clang stops, every kind of diagnostic is translated into plain words next to the
   panel rather than only the first. Identical complaints fold into one card that says `×3`, the list
   caps at six kinds and the remainder becomes a line telling you to clear these first, because the rest

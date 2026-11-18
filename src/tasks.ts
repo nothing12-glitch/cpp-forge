@@ -168,6 +168,17 @@ export function markSolved(id: string): boolean {
   return true;
 }
 
+/**
+ * The ladder is the order of this file, so what comes next is the first task after this one that is
+ * still open — and once the end is reached, the earlier ones that were skipped, rather than nothing.
+ */
+export function nextUnsolvedTask(currentId: string): Task | null {
+  const at = TASKS.findIndex((task) => task.id === currentId);
+  if (at < 0) return null;
+  const solved = solvedIds();
+  return [...TASKS.slice(at + 1), ...TASKS.slice(0, at)].find((task) => !solved.includes(task.id)) ?? null;
+}
+
 const cleanLines = (text: string): string[] =>
   text
     .split('\n')

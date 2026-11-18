@@ -37,6 +37,7 @@ import {
   diffOutput,
   firstDifference,
   markSolved,
+  nextUnsolvedTask,
   reasonWord,
   shortLine,
   solvedIds,
@@ -498,6 +499,8 @@ function startTask(task: Task) {
   stdinBox.value = task.cases[0].stdin ?? '';
   toggleStdin(Boolean(task.cases[0].stdin));
   clearConsole();
+  hideCaseBoard();
+  hideTaskDiff();
   taskFlag.hidden = false;
   taskFlag.innerHTML = '';
   const label = document.createElement('b');
@@ -818,7 +821,31 @@ function showCaseBoard(task: Task, results: CaseResult[], active: number, tries:
     caseBoardEl.appendChild(line);
   }
   caseBoardEl.hidden = false;
+  if (results.every((row) => row.ok)) suggestNext(task);
   flash(caseBoardEl, 'is-flash');
+}
+
+/** The moment a task is agreed is the moment the reader asks what next, so the board answers it. */
+function suggestNext(task: Task): void {
+  const next = nextUnsolvedTask(task.id);
+  const line = document.createElement('button');
+  line.type = 'button';
+  line.className = 'case-next';
+  if (!next) {
+    line.disabled = true;
+    line.textContent = `every challenge on this device is solved — all ${TASKS.length}`;
+    caseBoardEl.appendChild(line);
+    return;
+  }
+  const label = document.createElement('b');
+  label.textContent = 'next up';
+  const title = document.createElement('span');
+  title.textContent = `${next.title} — ${next.brief}`;
+  const meta = document.createElement('code');
+  meta.textContent = `${next.language.toUpperCase()} · ${checkWord(next.cases.length)}`;
+  line.append(label, title, meta);
+  line.addEventListener('click', () => startTask(next));
+  caseBoardEl.appendChild(line);
 }
 
 function attempts(): Record<string, number> {
